@@ -55,8 +55,10 @@ export default function DropshipperManagement() {
     const [isEditMode, setIsEditMode] = useState(false);
     const [currentDropshipper, setCurrentDropshipper] = useState(null);
     const [formData, setFormData] = useState({
-        name: "", email: "", mobile: "", status: "Active", state: "Andhra Pradesh", city: ""
+        name: "", email: "", mobile: "", status: "Active", state: "Andhra Pradesh", city: "", subscriptionStatus: "Not-added"
     });
+    const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+    const [successDetails, setSuccessDetails] = useState(null);
 
     const fetchDropshippers = async () => {
         try {
@@ -83,13 +85,139 @@ export default function DropshipperManagement() {
         }
     };
 
-    useEffect(() => { fetchDropshippers(); }, []);
+    useEffect(() => {
+        fetchDropshippers();
+        // Dynamic loading of Razorpay Script
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        return () => {
+            if (document.body.contains(script)) {
+                document.body.removeChild(script);
+            }
+        };
+    }, []);
 
     const handleCreateAccount = async (e) => {
         e.preventDefault();
+
+        // If creating a new partner, require payment
+        if (!isEditMode) {
+            const result = await Swal.fire({
+                title: 'Subscription Required',
+                text: "₹2,000 subscription fee is needed to register a new partner.",
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#2563eb',
+                cancelButtonColor: '#6b7280',
+                confirmButtonText: 'Buy Now',
+                cancelButtonText: 'Cancel'
+            });
+
+            if (!result.isConfirmed) return;
+
+            // Initiate Razorpay Payment
+            try {
+                const orderRes = await fetch("/api/admin/razorpay/order", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ amount: 2000 })
+                });
+
+                if (!orderRes.ok) throw new Error("Order creation failed");
+                const order = await orderRes.json();
+
+                const options = {
+                    key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_kY71FTFw40NENF",
+                    amount: order.amount,
+                    currency: order.currency,
+                    name: "Dropship Admin",
+                    description: "Partner Subscription Fee",
+                    order_id: order.id,
+                    handler: async function (response) {
+                        // Show verification loading
+                        Swal.fire({
+                            title: 'Verifying Payment',
+                            text: 'Please wait...',
+                            allowOutsideClick: false,
+                            didOpen: () => { Swal.showLoading(); }
+                        });
+
+                        // Capture current form state to avoid closures issues
+                        const finalData = {
+                            name: formData.name,
+                            email: formData.email,
+                            mobile: formData.mobile,
+                            status: formData.status,
+                            state: formData.state,
+                            city: formData.city,
+                            subscriptionStatus: "Added"
+                        };
+
+                        try {
+                            const verifyRes = await fetch("/api/admin/razorpay/verify", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(response)
+                            });
+
+                            const verifyData = await verifyRes.json();
+                            if (verifyData.success) {
+                                // Finalize account creation with explicit "Added" status and payment ref
+                                await finalizeAccountCreation(true, {
+                                    ...finalData,
+                                    paymentId: verifyData.payment_id
+                                });
+                            } else {
+                                Swal.close();
+                                Swal.fire("Verification Failed", "Payment verification failed. Please try again.", "error");
+                            }
+                        } catch (err) {
+                            Swal.close();
+                            Swal.fire("Error", "Payment verification failed.", "error");
+                        }
+                    },
+                    modal: {
+                        ondismiss: function () {
+                            Swal.close();
+                        }
+                    },
+                    prefill: {
+                        name: formData.name,
+                        email: formData.email,
+                        contact: formData.mobile
+                    },
+                    theme: { color: "#2563eb" }
+                };
+
+                const rzp = new window.Razorpay(options);
+                rzp.open();
+                return; // Wait for Razorpay handler
+            } catch (err) {
+                Swal.fire("Payment Error", err.message, "error");
+                return;
+            }
+        }
+
+        // For updates or if payment already handled/not needed
+        await finalizeAccountCreation();
+    };
+
+    const finalizeAccountCreation = async (isPaid = false, manualData = null) => {
         const url = "/api/admin/dropshippers";
         const method = isEditMode ? "PUT" : "POST";
-        const payload = isEditMode ? { ...formData, id: currentDropshipper._id } : formData;
+
+        // Construct payload explicitly using passed data if available (for new registrations after payment)
+        let payload = manualData || { ...formData };
+
+        if (isPaid) {
+            payload.subscriptionStatus = "Added";
+        }
+
+        if (isEditMode && currentDropshipper) {
+            payload.id = currentDropshipper._id;
+        }
 
         try {
             const res = await fetch(url, {
@@ -98,14 +226,27 @@ export default function DropshipperManagement() {
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                Swal.fire({ title: 'Saved!', icon: 'success', timer: 1000, showConfirmButton: false });
+                if (isPaid) {
+                    setSuccessDetails({
+                        name: payload.name,
+                        email: payload.email,
+                        paymentId: payload.paymentId,
+                        amount: "2,000",
+                        date: new Date().toLocaleString()
+                    });
+                    setIsSuccessModalOpen(true);
+                } else {
+                    Swal.fire({ title: 'Success!', text: isEditMode ? 'Partner updated' : 'Partner registered', icon: 'success', timer: 1500, showConfirmButton: false });
+                }
                 closeModal();
                 fetchDropshippers();
             } else {
                 const err = await res.json();
-                Swal.fire({ title: 'Error', text: err.message, icon: 'error' });
+                Swal.fire({ title: 'Error', text: err.message || 'Operation failed', icon: 'error' });
             }
-        } catch (err) { Swal.fire({ title: 'Connection Error', icon: 'error' }); }
+        } catch (err) {
+            Swal.fire({ title: 'Connection Error', icon: 'error' });
+        }
     };
 
     const handleEdit = (ds) => {
@@ -116,7 +257,8 @@ export default function DropshipperManagement() {
             mobile: ds.mobile || "",
             status: ds.status || "Active",
             state: ds.state || "Andhra Pradesh",
-            city: ds.city || ""
+            city: ds.city || "",
+            subscriptionStatus: ds.subscriptionStatus || "Not-added"
         });
         setIsEditMode(true);
         setIsAddModalOpen(true);
@@ -152,7 +294,7 @@ export default function DropshipperManagement() {
         setIsViewModalOpen(false);
         setIsEditMode(false);
         setCurrentDropshipper(null);
-        setFormData({ name: "", email: "", mobile: "", status: "Active", state: "Andhra Pradesh", city: "" });
+        setFormData({ name: "", email: "", mobile: "", status: "Active", state: "Andhra Pradesh", city: "", subscriptionStatus: "Not-added" });
     };
 
     const onStateChange = (stateName) => {
@@ -428,6 +570,59 @@ export default function DropshipperManagement() {
                             </div>
                             <button type="submit" className="w-full py-4 md:py-6 bg-blue-600 text-white font-black rounded-2xl md:rounded-3xl shadow-2xl shadow-blue-100 uppercase tracking-widest text-sm md:text-base hover:bg-blue-700 transition-all active:scale-[0.98] mt-2">Save Partner</button>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* Success/Invoice Modal */}
+            {isSuccessModalOpen && successDetails && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-500">
+                    <div className="bg-white rounded-[50px] w-full max-w-xl p-0 relative shadow-2xl animate-in zoom-in-95 overflow-hidden">
+                        <div className="bg-blue-600 p-10 text-white relative overflow-hidden">
+                            <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl text-white" />
+                            <div className="relative z-10 flex flex-col items-center text-center">
+                                <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mb-6 ring-8 ring-white/10 animate-bounce">
+                                    <CheckCircle2 size={40} className="text-white" />
+                                </div>
+                                <h3 className="text-3xl font-black tracking-tight leading-none mb-2">Subscription Active!</h3>
+                                <p className="text-blue-100 font-bold uppercase tracking-widest text-xs">Payment Successful • Receipt Generated</p>
+                            </div>
+                        </div>
+
+                        <div className="p-10 pt-12 space-y-8 bg-gray-50/30">
+                            <div className="bg-white p-8 rounded-[40px] border border-gray-100 shadow-sm space-y-6 relative">
+                                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-full shadow-lg">Official Receipt</div>
+
+                                <div className="grid grid-cols-2 gap-y-6 gap-x-10">
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Registered Partner</p>
+                                        <p className="text-sm font-black text-gray-900 leading-tight">{successDetails.name}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Amount Paid</p>
+                                        <p className="text-sm font-black text-blue-600 leading-tight">₹{successDetails.amount}.00</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Payment Reference</p>
+                                        <p className="text-[11px] font-bold text-gray-600 leading-tight break-all font-mono">{successDetails.paymentId || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Transaction Date</p>
+                                        <p className="text-[11px] font-bold text-gray-600 leading-tight">{successDetails.date}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => { setIsSuccessModalOpen(false); setSuccessDetails(null); }}
+                                className="w-full py-5 bg-gray-900 text-white font-black rounded-[28px] shadow-xl text-sm uppercase tracking-widest hover:bg-black transition-all active:scale-[0.97]"
+                            >
+                                Done & Close
+                            </button>
+
+                            <p className="text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest italic animate-pulse">
+                                Subscription status: Added (Authorized)
+                            </p>
+                        </div>
                     </div>
                 </div>
             )}

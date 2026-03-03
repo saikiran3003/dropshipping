@@ -8,7 +8,7 @@ export async function POST(req) {
     try {
         await dbConnect();
         const body = await req.json();
-        const { name, email, mobile, status, state, city } = body;
+        const { name, email, mobile, status, state, city, subscriptionStatus, paymentId } = body;
 
         if (!name || !email || !mobile || !state || !city) {
             return NextResponse.json({ message: "Name, Email, Mobile, State, and City are required." }, { status: 400 });
@@ -17,14 +17,21 @@ export async function POST(req) {
         const existing = await Dropshipper.findOne({ email });
         if (existing) return NextResponse.json({ message: "Email already registered" }, { status: 409 });
 
-        const newDs = await Dropshipper.create({
+        // Force 'Added' if it's a paid registration, otherwise use the provided status or default
+        const finalSubscriptionStatus = (subscriptionStatus && subscriptionStatus.toString().toLowerCase() === "added") ? "Added" : "Not-added";
+
+        const newDs = new Dropshipper({
             name,
             email,
             mobile,
             status: status || 'Active',
             state,
-            city
+            city,
+            subscriptionStatus: finalSubscriptionStatus,
+            paymentId: paymentId || null
         });
+
+        await newDs.save();
         return NextResponse.json({ message: "Registered", data: newDs }, { status: 201 });
     } catch (error) {
         console.error("DROPSHIPPER POST ERROR:", error);
@@ -64,12 +71,12 @@ export async function PUT(req) {
     try {
         await dbConnect();
         const body = await req.json();
-        const { id, name, email, mobile, status, state, city } = body;
+        const { id, name, email, mobile, status, state, city, subscriptionStatus } = body;
         if (!id) return NextResponse.json({ message: "ID missing" }, { status: 400 });
 
         const updated = await Dropshipper.findByIdAndUpdate(
             id,
-            { name, email, mobile, status, state, city },
+            { name, email, mobile, status, state, city, subscriptionStatus },
             { new: true, runValidators: true }
         ).lean();
 

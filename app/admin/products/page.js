@@ -1,11 +1,23 @@
-import { Package } from "lucide-react";
+"use client";
+
+import { Package, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ProductsPage() {
+    const router = useRouter();
     return (
         <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="space-y-1">
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 leading-tight tracking-tight">Products Inventory</h1>
-                <p className="text-xs md:text-sm text-gray-500 font-medium">Manage and monitor your global product catalogue.</p>
+            <div className="flex items-center gap-3 md:gap-5">
+                <button
+                    onClick={() => router.push('/admin/dashboard')}
+                    className="p-2 md:p-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl text-gray-400 hover:text-blue-600 hover:bg-blue-50/50 hover:border-blue-100 transition-all active:scale-95 group"
+                >
+                    <ArrowLeft size={20} className="md:w-6 md:h-6 group-hover:-translate-x-1 transition-transform" />
+                </button>
+                <div className="space-y-1">
+                    <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-gray-900 leading-tight tracking-tight">Products Inventory</h1>
+                    <p className="text-xs md:text-sm text-gray-500 font-medium">Manage and monitor your global product catalogue.</p>
+                </div>
             </div>
 
             {/* Placeholder for future product management features */}
