@@ -55,7 +55,7 @@ export default function DropshipperManagement() {
     const [isEditMode, setIsEditMode] = useState(false);
     const [currentDropshipper, setCurrentDropshipper] = useState(null);
     const [formData, setFormData] = useState({
-        name: "", email: "", mobile: "", status: "Active", state: "Andhra Pradesh", city: "", subscriptionStatus: "Not-added"
+        name: "", email: "", mobile: "", status: "Inactive", state: "None", city: "None", subscriptionStatus: "Not-added", countryCode: "+91"
     });
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [successDetails, setSuccessDetails] = useState(null);
@@ -115,7 +115,10 @@ export default function DropshipperManagement() {
                 cancelButtonText: 'Cancel'
             });
 
-            if (!result.isConfirmed) return;
+            if (!result.isConfirmed) {
+                await finalizeAccountCreation(false);
+                return;
+            }
 
             // Initiate Razorpay Payment
             try {
@@ -213,6 +216,10 @@ export default function DropshipperManagement() {
 
         if (isPaid) {
             payload.subscriptionStatus = "Added";
+            payload.status = "Active";
+        } else if (!isEditMode) {
+            payload.subscriptionStatus = "Not-added";
+            payload.status = "Inactive";
         }
 
         if (isEditMode && currentDropshipper) {
@@ -256,9 +263,10 @@ export default function DropshipperManagement() {
             email: ds.email || "",
             mobile: ds.mobile || "",
             status: ds.status || "Active",
-            state: ds.state || "Andhra Pradesh",
-            city: ds.city || "",
-            subscriptionStatus: ds.subscriptionStatus || "Not-added"
+            state: ds.state || "None",
+            city: ds.city || "None",
+            subscriptionStatus: ds.subscriptionStatus || "Not-added",
+            countryCode: ds.countryCode || "+91"
         });
         setIsEditMode(true);
         setIsAddModalOpen(true);
@@ -294,12 +302,16 @@ export default function DropshipperManagement() {
         setIsViewModalOpen(false);
         setIsEditMode(false);
         setCurrentDropshipper(null);
-        setFormData({ name: "", email: "", mobile: "", status: "Active", state: "Andhra Pradesh", city: "", subscriptionStatus: "Not-added" });
+        setFormData({ name: "", email: "", mobile: "", status: "Inactive", state: "None", city: "None", subscriptionStatus: "Not-added", countryCode: "+91" });
     };
 
     const onStateChange = (stateName) => {
+        if (stateName === "None") {
+            setFormData({ ...formData, state: "None", city: "None" });
+            return;
+        }
         const cities = STATE_CITY_DATA[stateName] || [];
-        setFormData({ ...formData, state: stateName, city: cities[0] || "" });
+        setFormData({ ...formData, state: stateName, city: cities[0] || "None" });
     };
 
     const filtered = dropshippers.filter(ds =>
@@ -544,19 +556,40 @@ export default function DropshipperManagement() {
                                 </div>
                                 <div className="space-y-1.5 md:space-y-2">
                                     <label className="text-[9px] md:text-[10px] uppercase font-black ml-2 text-gray-500 tracking-widest">Mobile Contact <span className="text-red-500">*</span></label>
-                                    <input required maxLength={10} value={formData.mobile} onChange={e => setFormData({ ...formData, mobile: e.target.value.replace(/\D/g, '') })} className="w-full px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm" placeholder="10 Digits Only" />
+                                    <div className="flex gap-2">
+                                        <select
+                                            value={formData.countryCode}
+                                            onChange={e => setFormData({ ...formData, countryCode: e.target.value })}
+                                            className="w-24 px-3 py-3.5 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm cursor-pointer appearance-none"
+                                        >
+                                            <option value="+91">+91 (IN)</option>
+                                            <option value="+1">+1 (US)</option>
+                                            <option value="+44">+44 (UK)</option>
+                                            <option value="+971">+971 (UAE)</option>
+                                            <option value="+61">+61 (AU)</option>
+                                        </select>
+                                        <input
+                                            required
+                                            maxLength={10}
+                                            value={formData.mobile}
+                                            onChange={e => setFormData({ ...formData, mobile: e.target.value.replace(/\D/g, '') })}
+                                            className="flex-1 px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
+                                            placeholder="10 Digits Only"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="space-y-1.5 md:space-y-2">
                                     <label className="text-[9px] md:text-[10px] uppercase font-black ml-2 text-gray-500 tracking-widest">Partner State <span className="text-red-500">*</span></label>
                                     <select value={formData.state} onChange={e => onStateChange(e.target.value)} className="w-full px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm cursor-pointer appearance-none">
+                                        <option value="None">None</option>
                                         {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1.5 md:space-y-2">
                                     <label className="text-[9px] md:text-[10px] uppercase font-black ml-2 text-gray-500 tracking-widest">Select City <span className="text-red-500">*</span></label>
                                     <select required value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} className="w-full px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm cursor-pointer appearance-none">
-                                        <option value="" disabled>Select Location</option>
-                                        {([...new Set(STATE_CITY_DATA[formData.state] || [])]).sort().map(c => <option key={c} value={c}>{c}</option>)}
+                                        <option value="None">None</option>
+                                        {formData.state !== "None" && ([...new Set(STATE_CITY_DATA[formData.state] || [])]).sort().map(c => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 </div>
                                 <div className="sm:col-span-2 space-y-1.5 md:space-y-2">
