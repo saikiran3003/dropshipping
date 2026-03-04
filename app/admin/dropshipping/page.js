@@ -9,6 +9,7 @@ import {
     Search,
     Filter,
     Eye,
+    EyeOff,
     Pencil,
     Trash2,
     ShieldCheck,
@@ -55,10 +56,11 @@ export default function DropshipperManagement() {
     const [isEditMode, setIsEditMode] = useState(false);
     const [currentDropshipper, setCurrentDropshipper] = useState(null);
     const [formData, setFormData] = useState({
-        name: "", email: "", mobile: "", status: "Inactive", state: "None", city: "None", subscriptionStatus: "Not-added", countryCode: "+91"
+        name: "", email: "", mobile: "", status: "Inactive", state: "None", city: "None", subscriptionStatus: "Not-added", countryCode: "+91", password: ""
     });
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [successDetails, setSuccessDetails] = useState(null);
+    const [showPassword, setShowPassword] = useState(false);
 
     const fetchDropshippers = async () => {
         try {
@@ -155,7 +157,8 @@ export default function DropshipperManagement() {
                             status: formData.status,
                             state: formData.state,
                             city: formData.city,
-                            subscriptionStatus: "Added"
+                            subscriptionStatus: "Added",
+                            password: formData.password || ""
                         };
 
                         try {
@@ -276,7 +279,8 @@ export default function DropshipperManagement() {
             state: ds.state || "None",
             city: ds.city || "None",
             subscriptionStatus: ds.subscriptionStatus || "Not-added",
-            countryCode: ds.countryCode || "+91"
+            countryCode: ds.countryCode || "+91",
+            password: ds.password || ""
         });
         setIsEditMode(true);
         setIsAddModalOpen(true);
@@ -302,8 +306,13 @@ export default function DropshipperManagement() {
                 if (res.ok) {
                     Swal.fire('Deleted!', '', 'success');
                     fetchDropshippers();
+                } else {
+                    Swal.fire('Error!', 'Failed to delete.', 'error');
                 }
-            } catch (err) { Swal.fire('Error!', '', 'error'); }
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Error!', 'Something went wrong.', 'error');
+            }
         }
     };
 
@@ -312,7 +321,8 @@ export default function DropshipperManagement() {
         setIsViewModalOpen(false);
         setIsEditMode(false);
         setCurrentDropshipper(null);
-        setFormData({ name: "", email: "", mobile: "", status: "Inactive", state: "None", city: "None", subscriptionStatus: "Not-added", countryCode: "+91" });
+        setFormData({ name: "", email: "", mobile: "", status: "Inactive", state: "None", city: "None", subscriptionStatus: "Not-added", countryCode: "+91", password: "" });
+        setShowPassword(false);
     };
 
     const onStateChange = (stateName) => {
@@ -320,8 +330,7 @@ export default function DropshipperManagement() {
             setFormData({ ...formData, state: "None", city: "None" });
             return;
         }
-        const cities = STATE_CITY_DATA[stateName] || [];
-        setFormData({ ...formData, state: stateName, city: cities[0] || "None" });
+        setFormData({ ...formData, state: stateName, city: "None" });
     };
 
     const filtered = dropshippers.filter(ds =>
@@ -560,9 +569,29 @@ export default function DropshipperManagement() {
                                     <label className="text-[9px] md:text-[10px] uppercase font-black ml-2 text-gray-500 tracking-widest">Full Name <span className="text-red-500">*</span></label>
                                     <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm" placeholder="Alex Johnson" />
                                 </div>
-                                <div className="space-y-1.5 md:space-y-2">
+                                <div className="sm:col-span-2 space-y-1.5 md:space-y-2">
                                     <label className="text-[9px] md:text-[10px] uppercase font-black ml-2 text-gray-500 tracking-widest">Email Address <span className="text-red-500">*</span></label>
                                     <input required type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm" placeholder="alex@gmail.com" />
+                                </div>
+                                <div className="space-y-1.5 md:space-y-2">
+                                    <label className="text-[9px] md:text-[10px] uppercase font-black ml-2 text-gray-500 tracking-widest">Login Password <span className="text-red-500">*</span></label>
+                                    <div className="relative group/pass">
+                                        <input
+                                            required
+                                            type={showPassword ? "text" : "password"}
+                                            value={formData.password}
+                                            onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                            className="w-full px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm pr-14"
+                                            placeholder="Enter Secure Password"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors p-1"
+                                        >
+                                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="space-y-1.5 md:space-y-2">
                                     <label className="text-[9px] md:text-[10px] uppercase font-black ml-2 text-gray-500 tracking-widest">Mobile Contact <span className="text-red-500">*</span></label>
@@ -570,7 +599,7 @@ export default function DropshipperManagement() {
                                         <select
                                             value={formData.countryCode}
                                             onChange={e => setFormData({ ...formData, countryCode: e.target.value })}
-                                            className="w-24 px-3 py-3.5 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm cursor-pointer appearance-none"
+                                            className="w-24 shrink-0 px-3 py-3.5 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm cursor-pointer appearance-none"
                                         >
                                             <option value="+91">+91 (IN)</option>
                                             <option value="+1">+1 (US)</option>
@@ -583,7 +612,7 @@ export default function DropshipperManagement() {
                                             maxLength={10}
                                             value={formData.mobile}
                                             onChange={e => setFormData({ ...formData, mobile: e.target.value.replace(/\D/g, '') })}
-                                            className="flex-1 px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
+                                            className="flex-1 min-w-0 px-5 py-3.5 md:px-6 md:py-4.5 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-xl md:rounded-[24px] outline-none font-black text-xs md:text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
                                             placeholder="10 Digits Only"
                                         />
                                     </div>

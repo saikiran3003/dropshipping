@@ -26,8 +26,11 @@ export default function ProductsPage() {
         description: "",
         mrpPrice: "",
         salePrice: "",
-        images: []
+        images: [],
+        bulkPricing: []
     });
+    const [newTier, setNewTier] = useState({ packOf: "", price: "" });
+    const [bulkTierEditIndex, setBulkTierEditIndex] = useState(null);
     const formRef = useRef(null);
 
     const fetchProducts = async () => {
@@ -69,6 +72,38 @@ export default function ProductsPage() {
         }));
     };
 
+    const addBulkTier = () => {
+        if (!newTier.packOf || !newTier.price) return;
+
+        setFormData(prev => {
+            const updatedBulk = [...prev.bulkPricing];
+            if (bulkTierEditIndex !== null) {
+                // Update existing
+                updatedBulk[bulkTierEditIndex] = { ...newTier, packOf: Number(newTier.packOf), price: Number(newTier.price) };
+            } else {
+                // Add new
+                updatedBulk.push({ ...newTier, packOf: Number(newTier.packOf), price: Number(newTier.price) });
+            }
+            return { ...prev, bulkPricing: updatedBulk };
+        });
+
+        setNewTier({ packOf: "", price: "" });
+        setBulkTierEditIndex(null);
+    };
+
+    const editBulkTier = (index) => {
+        const tier = formData.bulkPricing[index];
+        setNewTier({ packOf: tier.packOf, price: tier.price });
+        setBulkTierEditIndex(index);
+    };
+
+    const removeBulkTier = (index) => {
+        setFormData(prev => ({
+            ...prev,
+            bulkPricing: prev.bulkPricing.filter((_, i) => i !== index)
+        }));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -92,7 +127,7 @@ export default function ProductsPage() {
                     timer: 1500,
                     showConfirmButton: false
                 });
-                setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [] });
+                setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [] });
                 setIsEditMode(false);
                 setEditingId(null);
                 fetchProducts();
@@ -113,7 +148,8 @@ export default function ProductsPage() {
             description: product.description,
             mrpPrice: product.mrpPrice,
             salePrice: product.salePrice,
-            images: product.images || []
+            images: product.images || [],
+            bulkPricing: product.bulkPricing || []
         });
         setIsEditMode(true);
         setEditingId(product._id);
@@ -242,6 +278,58 @@ export default function ProductsPage() {
                                     </label>
                                 </div>
                             </div>
+
+                            {/* Bulk Pricing Section */}
+                            <div className="md:col-span-2 space-y-6 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100/50">
+                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest block">Bulk Pricing Tiers (Pack Of Pricing)</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] uppercase font-black ml-2 text-gray-400">Pack Of</label>
+                                        <input
+                                            type="number"
+                                            value={newTier.packOf}
+                                            onChange={e => setNewTier({ ...newTier, packOf: e.target.value })}
+                                            className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-900"
+                                            placeholder="e.g. 100"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[9px] uppercase font-black ml-2 text-gray-400">Price (₹)</label>
+                                        <input
+                                            type="number"
+                                            value={newTier.price}
+                                            onChange={e => setNewTier({ ...newTier, price: e.target.value })}
+                                            className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-900"
+                                            placeholder="e.g. 1069"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={addBulkTier}
+                                        className={`py-3 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] transition-all active:scale-95 ${bulkTierEditIndex !== null ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-100' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100'}`}
+                                    >
+                                        {bulkTierEditIndex !== null ? 'Update Tier' : 'Add Tier'}
+                                    </button>
+                                </div>
+
+                                {formData.bulkPricing.length > 0 && (
+                                    <div className="mt-6 flex flex-wrap gap-3">
+                                        {formData.bulkPricing.map((tier, idx) => (
+                                            <div key={idx} className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm transition-all ${bulkTierEditIndex === idx ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-100' : 'bg-white border-gray-100'}`}>
+                                                <span className="text-xs font-black text-gray-900">Pack of {tier.packOf}: ₹{tier.price}</span>
+                                                <div className="flex items-center gap-1 border-l border-gray-100 pl-2 ml-1">
+                                                    <button type="button" onClick={() => editBulkTier(idx)} className="text-blue-400 hover:text-blue-600 p-1 transition-colors">
+                                                        <Pencil size={12} />
+                                                    </button>
+                                                    <button type="button" onClick={() => removeBulkTier(idx)} className="text-red-400 hover:text-red-600 p-1 transition-colors">
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="flex gap-4">
@@ -258,7 +346,7 @@ export default function ProductsPage() {
                                     onClick={() => {
                                         setIsEditMode(false);
                                         setEditingId(null);
-                                        setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [] });
+                                        setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [] });
                                     }}
                                     className="px-8 py-5 bg-gray-100 text-gray-500 font-black rounded-[24px] uppercase tracking-widest text-sm hover:bg-gray-200 transition-all active:scale-[0.98]"
                                 >

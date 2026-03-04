@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ShoppingCart, Tag, Info, ImageIcon } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Tag, Info, ImageIcon, Plus, Minus, Layers } from "lucide-react";
 
 function ImageMagnifier({ src, alt }) {
     const [showMagnifier, setShowMagnifier] = useState(false);
@@ -64,6 +64,7 @@ export default function ProductDetailPage({ params }) {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeImage, setActiveImage] = useState("");
+    const [quantity, setQuantity] = useState(1);
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -163,16 +164,79 @@ export default function ProductDetailPage({ params }) {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                             <h2 className="text-4xl font-black text-gray-900 tracking-tight">Pricing & Sales</h2>
-                            <div className="flex items-baseline gap-4 mt-4">
-                                <span className="text-5xl font-black text-blue-600 tracking-tighter">₹{product.salePrice.toLocaleString()}</span>
-                                <span className="text-xl text-gray-400 line-through font-bold">₹{product.mrpPrice.toLocaleString()}</span>
-                                <span className="bg-orange-50 text-orange-600 px-3 py-1 rounded-xl text-sm font-black">
-                                    {Math.round(((product.mrpPrice - product.salePrice) / product.mrpPrice) * 100)}% DISCOUNT
-                                </span>
+                            <div className="flex flex-wrap items-center gap-6 mt-4">
+                                <div className="space-y-1">
+                                    {(() => {
+                                        const tier = product.bulkPricing?.find(t => t.packOf === quantity);
+                                        const currentPrice = tier ? tier.price : (product.salePrice * quantity);
+                                        return (
+                                            <span className="text-5xl font-black text-blue-600 tracking-tighter">
+                                                ₹{currentPrice.toLocaleString()}
+                                            </span>
+                                        );
+                                    })()}
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xl text-gray-400 line-through font-bold">₹{(product.mrpPrice * quantity).toLocaleString()}</span>
+                                        <span className="bg-orange-50 text-orange-600 px-3 py-1 rounded-xl text-xs font-black">
+                                            {Math.round(((product.mrpPrice - product.salePrice) / product.mrpPrice) * 100)}% DISCOUNT
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Quantity Selector */}
+                                <div className="flex items-center bg-gray-100 p-2 rounded-[24px] border border-gray-200">
+                                    <button
+                                        onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                                        className="w-10 h-10 flex items-center justify-center bg-white rounded-xl text-gray-600 hover:text-blue-600 shadow-sm transition-all active:scale-95"
+                                    >
+                                        <Minus size={18} />
+                                    </button>
+                                    <span className="px-6 text-xl font-black text-gray-900 min-w-[60px] text-center">{quantity}</span>
+                                    <button
+                                        onClick={() => setQuantity(prev => prev + 1)}
+                                        className="w-10 h-10 flex items-center justify-center bg-white rounded-xl text-gray-600 hover:text-blue-600 shadow-sm transition-all active:scale-95"
+                                    >
+                                        <Plus size={18} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
+
+                        {/* Bulk Pricing Table */}
+                        {product.bulkPricing && product.bulkPricing.length > 0 && (
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-2 text-gray-900">
+                                    <Layers size={20} className="text-blue-500" />
+                                    <h3 className="text-lg font-black uppercase tracking-widest text-xs">Bulk Pricing (Save More)</h3>
+                                </div>
+                                <div className="overflow-hidden rounded-[32px] border border-gray-100 shadow-sm bg-white">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-50/50">
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">Pack Of</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">Price</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">Per Pcs Rate</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {product.bulkPricing.sort((a, b) => a.packOf - b.packOf).map((tier, idx) => (
+                                                <tr
+                                                    key={idx}
+                                                    onClick={() => setQuantity(tier.packOf)}
+                                                    className={`cursor-pointer transition-colors hover:bg-blue-50/30 ${quantity === tier.packOf ? "bg-blue-50/50" : ""}`}
+                                                >
+                                                    <td className="px-6 py-4 font-black text-gray-900 border-b border-gray-50">{tier.packOf}</td>
+                                                    <td className="px-6 py-4 font-black text-blue-600 border-b border-gray-50">₹{tier.price.toLocaleString()}</td>
+                                                    <td className="px-6 py-4 font-bold text-gray-500 border-b border-gray-50">₹{(tier.price / tier.packOf).toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-6">

@@ -26,7 +26,7 @@ export async function POST(req) {
     try {
         await dbConnect();
         const body = await req.json();
-        const { name, description, mrpPrice, salePrice, images } = body;
+        const { name, description, mrpPrice, salePrice, images, bulkPricing } = body;
 
         if (!name || !description || !mrpPrice || !salePrice) {
             return NextResponse.json({ message: "Name, Description, MRP Price, and Sale Price are required." }, { status: 400 });
@@ -40,7 +40,8 @@ export async function POST(req) {
             description,
             mrpPrice,
             salePrice,
-            images: cloudinaryUrls
+            images: cloudinaryUrls,
+            bulkPricing: bulkPricing || []
         });
 
         await newProduct.save();
@@ -66,7 +67,7 @@ export async function PUT(req) {
     try {
         await dbConnect();
         const body = await req.json();
-        const { id, name, description, mrpPrice, salePrice, images } = body;
+        const { id, name, description, mrpPrice, salePrice, images, bulkPricing } = body;
 
         if (!id) return NextResponse.json({ message: "Product ID is missing" }, { status: 400 });
 
@@ -75,7 +76,7 @@ export async function PUT(req) {
 
         const updatedProduct = await Product.findByIdAndUpdate(
             id,
-            { name, description, mrpPrice, salePrice, images: cloudinaryUrls },
+            { name, description, mrpPrice, salePrice, images: cloudinaryUrls, bulkPricing: bulkPricing || [] },
             { new: true, runValidators: true }
         ).lean();
 

@@ -10,6 +10,11 @@ const DropshipperSchema = new mongoose.Schema({
     totalSales: { type: Number, default: 0 },
     totalEarnings: { type: Number, default: 0 },
     subscriptionStatus: { type: String, enum: ['Added', 'Not-added'], default: 'Not-added' },
+    password: { type: String, default: '' },
 }, { timestamps: true });
 
-export default mongoose.models.Dropshipper || mongoose.model('Dropshipper', DropshipperSchema);
+if (mongoose.models.Dropshipper) {
+    delete mongoose.models.Dropshipper;
+}
+const Dropshipper = mongoose.model('Dropshipper', DropshipperSchema);
+export default Dropshipper;

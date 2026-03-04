@@ -6,6 +6,16 @@ const ProductSchema = new mongoose.Schema({
     mrpPrice: { type: Number, required: true },
     salePrice: { type: Number, required: true },
     images: [{ type: String }], // Array of image URLs/paths
+    bulkPricing: [
+        {
+            packOf: { type: Number, required: true },
+            price: { type: Number, required: true },
+        }
+    ]
 }, { timestamps: true });
 
-export default mongoose.models.Product || mongoose.model('Product', ProductSchema);
+if (mongoose.models.Product) {
+    delete mongoose.models.Product;
+}
+const Product = mongoose.model('Product', ProductSchema);
+export default Product;

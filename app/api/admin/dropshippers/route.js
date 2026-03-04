@@ -8,7 +8,7 @@ export async function POST(req) {
     try {
         await dbConnect();
         const body = await req.json();
-        const { name, email, mobile, status, state, city, subscriptionStatus, paymentId } = body;
+        const { name, email, mobile, status, state, city, subscriptionStatus, paymentId, password } = body;
 
         if (!name || !email || !mobile || !state || !city) {
             return NextResponse.json({ message: "Name, Email, Mobile, State, and City are required." }, { status: 400 });
@@ -28,7 +28,8 @@ export async function POST(req) {
             state,
             city,
             subscriptionStatus: finalSubscriptionStatus,
-            paymentId: paymentId || null
+            paymentId: paymentId || null,
+            password: password || ''
         });
 
         await newDs.save();
@@ -71,12 +72,12 @@ export async function PUT(req) {
     try {
         await dbConnect();
         const body = await req.json();
-        const { id, name, email, mobile, status, state, city, subscriptionStatus } = body;
+        const { id, name, email, mobile, status, state, city, subscriptionStatus, password } = body;
         if (!id) return NextResponse.json({ message: "ID missing" }, { status: 400 });
 
         const updated = await Dropshipper.findByIdAndUpdate(
             id,
-            { name, email, mobile, status, state, city, subscriptionStatus },
+            { name, email, mobile, status, state, city, subscriptionStatus, password },
             { new: true, runValidators: true }
         ).lean();
 
