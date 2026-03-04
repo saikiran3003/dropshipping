@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ShoppingCart, Tag, Info, ImageIcon, Plus, Minus, Layers } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Tag, Info, ImageIcon, Plus, Minus, Layers, Share2 } from "lucide-react";
+import Swal from "sweetalert2";
 
 function ImageMagnifier({ src, alt }) {
     const [showMagnifier, setShowMagnifier] = useState(false);
@@ -88,6 +89,59 @@ export default function ProductDetailPage({ params }) {
         if (id) fetchProduct();
     }, [id]);
 
+    const handleShare = async () => {
+        const tier = product.bulkPricing?.find(t => t.packOf === quantity);
+        const currentPrice = tier ? tier.price : (product.salePrice * quantity);
+        const shareText = `Check out this product: ${product.name}\nPrice: ₹${currentPrice.toLocaleString()}\nDescription: ${product.description}`;
+
+        try {
+            if (navigator.share) {
+                const filesArray = [];
+                if (activeImage) {
+                    try {
+                        const response = await fetch(activeImage);
+                        const blob = await response.blob();
+                        const file = new File([blob], "product-image.jpg", { type: blob.type });
+                        filesArray.push(file);
+                    } catch (imageError) {
+                        console.error("Failed to fetch image for sharing:", imageError);
+                    }
+                }
+
+                const shareData = {
+                    title: product.name,
+                    text: shareText,
+                    url: window.location.href,
+                    ...(filesArray.length > 0 && navigator.canShare?.({ files: filesArray }) ? { files: filesArray } : {})
+                };
+
+                await navigator.share(shareData);
+            } else {
+                throw new Error("Share API not supported");
+            }
+        } catch (error) {
+            console.warn("Native share failed, falling back to clipboard:", error);
+            try {
+                await navigator.clipboard.writeText(`${shareText}\nLink: ${window.location.href}`);
+                Swal.fire({
+                    icon: "success",
+                    title: "Copied to Clipboard!",
+                    text: "Product details have been copied for sharing.",
+                    timer: 2000,
+                    showConfirmButton: false,
+                    position: "top-end",
+                    toast: true
+                });
+            } catch (clipboardError) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Share Failed",
+                    text: "Could not share or copy details."
+                });
+            }
+        }
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -165,7 +219,16 @@ export default function ProductDetailPage({ params }) {
                         </div>
 
                         <div className="space-y-4">
-                            <h2 className="text-4xl font-black text-gray-900 tracking-tight">Pricing & Sales</h2>
+                            <div className="flex items-center justify-between gap-4">
+                                <h2 className="text-4xl font-black text-gray-900 tracking-tight">Pricing & Sales</h2>
+                                <button
+                                    onClick={handleShare}
+                                    className="p-4 bg-gray-50 text-gray-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-2xl transition-all active:scale-95 group border border-transparent hover:border-blue-100"
+                                    title="Share Product"
+                                >
+                                    <Share2 size={24} className="group-hover:rotate-12 transition-transform" />
+                                </button>
+                            </div>
                             <div className="flex flex-wrap items-center gap-6 mt-4">
                                 <div className="space-y-1">
                                     {(() => {

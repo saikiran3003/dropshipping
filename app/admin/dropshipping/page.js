@@ -61,6 +61,7 @@ export default function DropshipperManagement() {
     const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
     const [successDetails, setSuccessDetails] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
+    const [statusFilter, setStatusFilter] = useState("All Statuses");
 
     const fetchDropshippers = async () => {
         try {
@@ -323,6 +324,7 @@ export default function DropshipperManagement() {
         setCurrentDropshipper(null);
         setFormData({ name: "", email: "", mobile: "", status: "Inactive", state: "None", city: "None", subscriptionStatus: "Not-added", countryCode: "+91", password: "" });
         setShowPassword(false);
+        setStatusFilter("All Statuses");
     };
 
     const onStateChange = (stateName) => {
@@ -333,10 +335,14 @@ export default function DropshipperManagement() {
         setFormData({ ...formData, state: stateName, city: "None" });
     };
 
-    const filtered = dropshippers.filter(ds =>
-        ds.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ds.email.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filtered = dropshippers.filter(ds => {
+        const matchesSearch = ds.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            ds.email.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesStatus = statusFilter === "All Statuses" ||
+            (statusFilter === "Pending" && ds.status === "Pending Approval") ||
+            ds.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
 
     return (
         <div className="p-4 md:p-10 space-y-6 md:space-y-10 animate-in fade-in duration-700 bg-gray-50/50 min-h-screen font-sans">
@@ -406,11 +412,15 @@ export default function DropshipperManagement() {
                         />
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <select className="flex-1 md:flex-none px-4 md:px-5 py-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold text-gray-600 outline-none focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer">
-                            <option>All Statuses</option>
-                            <option>Active</option>
-                            <option>Pending</option>
-                            <option>Inactive</option>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="flex-1 md:flex-none px-4 md:px-5 py-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl text-xs md:text-sm font-bold text-gray-600 outline-none focus:ring-4 focus:ring-blue-500/5 transition-all cursor-pointer"
+                        >
+                            <option value="All Statuses">All Statuses</option>
+                            <option value="Active">Active</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Inactive">Inactive</option>
                         </select>
                     </div>
                 </div>

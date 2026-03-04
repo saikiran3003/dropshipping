@@ -12,6 +12,7 @@ import {
     Upload,
     X,
     ImageIcon,
+    Search,
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -29,6 +30,7 @@ export default function ProductsPage() {
         images: [],
         bulkPricing: []
     });
+    const [searchQuery, setSearchQuery] = useState("");
     const [newTier, setNewTier] = useState({ packOf: "", price: "" });
     const [bulkTierEditIndex, setBulkTierEditIndex] = useState(null);
     const formRef = useRef(null);
@@ -358,67 +360,98 @@ export default function ProductsPage() {
                 </div>
 
                 {/* Products List Grid */}
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">Inventory Catalogue</h2>
-                        <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest">
-                            {products.length} Products
-                        </span>
+                <div className="bg-white rounded-3xl md:rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-6 md:p-8 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/20">
+                        <div className="flex items-center gap-4">
+                            <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">Inventory Catalogue</h2>
+                            <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                {products.length} Products
+                            </span>
+                        </div>
+                        <div className="relative w-full md:w-72 group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search products..."
+                                className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-xs md:text-sm placeholder:font-medium shadow-sm"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                        {loading && products.length === 0 ? (
-                            <div className="col-span-full py-20 text-center animate-pulse text-gray-400 font-bold">Loading your inventory...</div>
-                        ) : products.length === 0 ? (
-                            <div className="col-span-full py-20 text-center bg-white rounded-[40px] border border-dashed border-gray-200">
-                                <ImageIcon size={48} className="mx-auto text-gray-200 mb-4" />
-                                <p className="text-gray-400 font-bold">No products found. Start adding some!</p>
-                            </div>
-                        ) : (
-                            products.map((product) => (
-                                <div key={product._id} className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden group hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer relative">
-                                    <Link href={`/admin/products/${product._id}`} className="relative h-56 bg-gray-50 overflow-hidden block">
-                                        {product.images && product.images.length > 0 ? (
-                                            <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-200"><ImageIcon size={48} /></div>
-                                        )}
-                                    </Link>
-                                    <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0 duration-300 z-10">
-                                        <button
-                                            onClick={(e) => { e.preventDefault(); handleEdit(product); }}
-                                            className="p-3 bg-white/95 text-orange-500 rounded-2xl shadow-lg hover:bg-orange-50 transition-colors"
-                                        >
-                                            <Pencil size={18} />
-                                        </button>
-                                        <button
-                                            onClick={(e) => { e.preventDefault(); handleDelete(product._id); }}
-                                            className="p-3 bg-white/95 text-red-500 rounded-2xl shadow-lg hover:bg-red-50 transition-colors"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
-                                    <div className="p-6 flex flex-col flex-1">
-                                        <div className="mb-4">
-                                            <h3 className="text-lg font-black text-gray-900 leading-tight mb-1 group-hover:text-blue-600 transition-colors line-clamp-1">{product.name}</h3>
-                                            <p className="text-xs text-gray-400 font-bold line-clamp-2 leading-relaxed">{product.description}</p>
-                                        </div>
-                                        <div className="mt-auto flex items-end justify-between pt-4 border-t border-gray-50">
-                                            <div>
-                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Selling for</p>
-                                                <p className="text-2xl font-black text-blue-600 tracking-tight">₹{product.salePrice.toLocaleString()}</p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1 line-through">₹{product.mrpPrice.toLocaleString()}</p>
-                                                <p className="text-[10px] text-green-500 font-black uppercase tracking-widest">
-                                                    {Math.round(((product.mrpPrice - product.salePrice) / product.mrpPrice) * 100)}% OFF
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        )}
+                    <div className="overflow-x-auto scrollbar-hide">
+                        <table className="w-full text-left min-w-[800px]">
+                            <thead>
+                                <tr className="bg-gray-50/30">
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">ID</th>
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Image</th>
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Product Details</th>
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Pricing (₹)</th>
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {loading && products.length === 0 ? (
+                                    <tr><td colSpan="5" className="px-8 py-20 text-center animate-pulse text-gray-400 font-bold italic">Loading inventory...</td></tr>
+                                ) : products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                                    <tr>
+                                        <td colSpan="5" className="px-8 py-20 text-center">
+                                            <ImageIcon size={40} className="mx-auto text-gray-200 mb-3" />
+                                            <p className="text-gray-400 font-bold italic">No matching products found.</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((product, index) => (
+                                        <tr key={product._id} className="hover:bg-gray-50/50 transition-all font-bold group">
+                                            <td className="px-8 py-6 text-xs text-gray-400 font-black">#{index + 1}</td>
+                                            <td className="px-8 py-6">
+                                                <Link href={`/admin/products/${product._id}`} className="w-14 h-14 bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex items-center justify-center block group/img">
+                                                    {product.images && product.images.length > 0 ? (
+                                                        <img src={product.images[0]} alt="" className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500" />
+                                                    ) : (
+                                                        <ImageIcon size={24} className="text-gray-200" />
+                                                    )}
+                                                </Link>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <Link href={`/admin/products/${product._id}`} className="max-w-xs block group/text">
+                                                    <p className="text-sm text-gray-900 group-hover/text:text-blue-600 transition-colors line-clamp-1">{product.name}</p>
+                                                    <p className="text-[10px] text-gray-400 mt-1.5 line-clamp-1 font-medium">{product.description}</p>
+                                                </Link>
+                                            </td>
+                                            <td className="px-8 py-6 text-right">
+                                                <div className="flex flex-col items-end">
+                                                    <p className="text-sm text-blue-600 font-black">₹{product.salePrice.toLocaleString()}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <p className="text-[9px] text-gray-400 line-through font-bold">₹{product.mrpPrice.toLocaleString()}</p>
+                                                        <p className="text-[9px] text-green-500 font-black">
+                                                            {Math.round(((product.mrpPrice - product.salePrice) / product.mrpPrice) * 100)}% OFF
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <div className="flex items-center justify-center gap-3">
+                                                    <button
+                                                        onClick={() => handleEdit(product)}
+                                                        className="p-2.5 bg-orange-50 text-orange-500 rounded-xl hover:bg-orange-100 transition-all active:scale-90"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(product._id)}
+                                                        className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

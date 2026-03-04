@@ -38,6 +38,8 @@ export default function DashboardPage() {
             }
         };
         fetchStats();
+        const interval = setInterval(fetchStats, 10000);
+        return () => clearInterval(interval);
     }, []);
 
     const stats = [
@@ -45,7 +47,7 @@ export default function DashboardPage() {
         { label: "Total Products", value: counts.totalProducts.toLocaleString(), icon: Package, color: "text-purple-600", bg: "bg-purple-50", trend: "+ 0%" },
         { label: "Total Orders", value: counts.totalOrders.toLocaleString(), icon: ShoppingCart, color: "text-orange-600", bg: "bg-orange-50", trend: "+ 0%" },
         { label: "Total Revenue", value: `₹${counts.totalRevenue.toLocaleString()}`, icon: TrendingUp, color: "text-green-600", bg: "bg-green-50", trend: "+ 0%" },
-        { label: "Pending Payments", value: counts.pendingPayments.toLocaleString(), icon: Clock, color: "text-red-600", bg: "bg-red-50", trend: "- 0%" },
+        { label: "Total Subscriptions", value: (counts.totalSubscriptions || 0).toLocaleString(), icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50", trend: "+ 0%" },
     ];
 
     const recentOrders = [
