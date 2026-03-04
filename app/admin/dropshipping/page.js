@@ -162,19 +162,29 @@ export default function DropshipperManagement() {
                             const verifyRes = await fetch("/api/admin/razorpay/verify", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(response)
+                                body: JSON.stringify({
+                                    ...response,
+                                    dropshipperData: finalData
+                                })
                             });
 
                             const verifyData = await verifyRes.json();
                             if (verifyData.success) {
-                                // Finalize account creation with explicit "Added" status and payment ref
-                                await finalizeAccountCreation(true, {
-                                    ...finalData,
-                                    paymentId: verifyData.payment_id
+                                // Consolidation: Registration already handled in verify API
+                                Swal.close();
+                                setSuccessDetails({
+                                    name: finalData.name,
+                                    email: finalData.email,
+                                    paymentId: verifyData.payment_id,
+                                    amount: "2,000",
+                                    date: new Date().toLocaleString()
                                 });
+                                setIsSuccessModalOpen(true);
+                                closeModal();
+                                fetchDropshippers();
                             } else {
                                 Swal.close();
-                                Swal.fire("Verification Failed", "Payment verification failed. Please try again.", "error");
+                                Swal.fire("Verification Failed", verifyData.message || "Payment verification failed. Please try again.", "error");
                             }
                         } catch (err) {
                             Swal.close();

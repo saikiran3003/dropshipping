@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User, Lock, ShieldCheck } from "lucide-react";
+import Swal from "sweetalert2";
 
 export default function AdminLoginPage() {
     const [username, setUsername] = useState("");
@@ -38,7 +39,20 @@ export default function AdminLoginPage() {
             const data = await res.json();
 
             if (res.ok) {
-                router.push("/admin/dashboard");
+                Swal.fire({
+                    title: "Login Successful",
+                    text: "Welcome back, Admin!",
+                    icon: "success",
+                    timer: 1500,
+                    showConfirmButton: false,
+                    background: '#ffffff',
+                    customClass: {
+                        popup: 'rounded-[32px]',
+                    }
+                });
+                setTimeout(() => {
+                    router.push("/admin/dashboard");
+                }, 1500);
             } else {
                 setError(data.message || "Login failed");
             }
