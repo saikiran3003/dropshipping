@@ -29,8 +29,8 @@ export default function DropshipperLogin() {
 
             if (res.ok) {
                 Swal.fire({
-                    title: "Login Successful",
-                    text: "Welcome back, Partner!",
+                    title: "Logged in!",
+                    text: "Login successfully",
                     icon: "success",
                     timer: 1500,
                     showConfirmButton: false,
@@ -40,7 +40,7 @@ export default function DropshipperLogin() {
                     }
                 });
                 setTimeout(() => {
-                    router.push("/dropshipper/dashboard");
+                    router.push("/dropshipper/products");
                 }, 1500);
             } else {
                 setError(data.error || "Login failed");

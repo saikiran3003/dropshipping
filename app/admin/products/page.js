@@ -13,6 +13,7 @@ import {
     X,
     ImageIcon,
     Search,
+    ChevronDown,
 } from "lucide-react";
 import Swal from "sweetalert2";
 
@@ -28,12 +29,28 @@ export default function ProductsPage() {
         mrpPrice: "",
         salePrice: "",
         images: [],
-        bulkPricing: []
+        bulkPricing: [],
+        category: "Uncategorized"
     });
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("All");
+    const [categories, setCategories] = useState(["All", "Uncategorized"]);
     const [newTier, setNewTier] = useState({ packOf: "", price: "" });
     const [bulkTierEditIndex, setBulkTierEditIndex] = useState(null);
     const formRef = useRef(null);
+
+    const fetchCategories = async () => {
+        try {
+            const res = await fetch("/api/categories");
+            if (res.ok) {
+                const data = await res.json();
+                const catNames = data.map(c => c.name);
+                setCategories(["All", ...catNames, "Uncategorized"]);
+            }
+        } catch (error) {
+            console.error("Failed to fetch categories:", error);
+        }
+    };
 
     const fetchProducts = async () => {
         try {
@@ -51,6 +68,7 @@ export default function ProductsPage() {
 
     useEffect(() => {
         fetchProducts();
+        fetchCategories();
     }, []);
 
     const handleImageUpload = (e) => {
@@ -129,7 +147,7 @@ export default function ProductsPage() {
                     timer: 1500,
                     showConfirmButton: false
                 });
-                setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [] });
+                setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized" });
                 setIsEditMode(false);
                 setEditingId(null);
                 fetchProducts();
@@ -151,7 +169,8 @@ export default function ProductsPage() {
             mrpPrice: product.mrpPrice,
             salePrice: product.salePrice,
             images: product.images || [],
-            bulkPricing: product.bulkPricing || []
+            bulkPricing: product.bulkPricing || [],
+            category: product.category || "Uncategorized"
         });
         setIsEditMode(true);
         setEditingId(product._id);
@@ -212,7 +231,7 @@ export default function ProductsPage() {
 
                     <form onSubmit={handleSubmit} className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="md:col-span-2 space-y-2 text-left">
+                            <div className="space-y-2 text-left">
                                 <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Product Name</label>
                                 <input
                                     required
@@ -221,6 +240,19 @@ export default function ProductsPage() {
                                     className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
                                     placeholder="e.g. Premium Wireless Headphones"
                                 />
+                            </div>
+
+                            <div className="space-y-2 text-left">
+                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Category</label>
+                                <select
+                                    value={formData.category}
+                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
+                                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm appearance-none cursor-pointer"
+                                >
+                                    {categories.filter(c => c !== "All").map(cat => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="space-y-2 text-left">
@@ -348,7 +380,7 @@ export default function ProductsPage() {
                                     onClick={() => {
                                         setIsEditMode(false);
                                         setEditingId(null);
-                                        setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [] });
+                                        setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized" });
                                     }}
                                     className="px-8 py-5 bg-gray-100 text-gray-500 font-black rounded-[24px] uppercase tracking-widest text-sm hover:bg-gray-200 transition-all active:scale-[0.98]"
                                 >
@@ -361,22 +393,110 @@ export default function ProductsPage() {
 
                 {/* Products List Grid */}
                 <div className="bg-white rounded-3xl md:rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
-                    <div className="p-6 md:p-8 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gray-50/20">
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight">Inventory Catalogue</h2>
-                            <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                {products.length} Products
-                            </span>
+                    <div className="p-6 md:p-8 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gray-50/20">
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-6 flex-1">
+                            <div className="relative w-full md:w-72 group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+                                <input
+                                    type="text"
+                                    placeholder="Search products..."
+                                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-xs md:text-sm placeholder:font-medium shadow-sm"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="relative w-full md:w-64 group">
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
+                                <select
+                                    value={selectedCategory}
+                                    onChange={(e) => {
+                                        if (e.target.value === "ADD_NEW") {
+                                            Swal.fire({
+                                                title: 'Add New Category',
+                                                input: 'text',
+                                                inputPlaceholder: 'Enter category name...',
+                                                showCancelButton: true,
+                                                confirmButtonText: 'Add',
+                                                confirmButtonColor: '#2563eb',
+                                            }).then(async (result) => {
+                                                if (result.isConfirmed && result.value) {
+                                                    const newCatInput = result.value.trim();
+                                                    if (newCatInput) {
+                                                        try {
+                                                            const res = await fetch("/api/categories", {
+                                                                method: "POST",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({ name: newCatInput })
+                                                            });
+                                                            if (res.ok) {
+                                                                fetchCategories();
+                                                                const data = await res.json();
+                                                                setSelectedCategory(data.data.name);
+                                                                setFormData(prev => ({ ...prev, category: data.data.name }));
+                                                            } else {
+                                                                const err = await res.json();
+                                                                Swal.fire("Error", err.message, "error");
+                                                            }
+                                                        } catch (error) {
+                                                            Swal.fire("Error", "Failed to add category", "error");
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                        } else if (e.target.value === "DELETE_CATEGORY") {
+                                            const catsToDelete = categories.filter(c => c !== "All" && c !== "Uncategorized");
+                                            Swal.fire({
+                                                title: 'Delete Category',
+                                                text: 'Select a category to delete. Warning: Products in this category will become Uncategorized.',
+                                                input: 'select',
+                                                inputOptions: catsToDelete.reduce((acc, curr) => ({ ...acc, [curr]: curr }), {}),
+                                                inputPlaceholder: 'Select category',
+                                                showCancelButton: true,
+                                                confirmButtonText: 'Delete',
+                                                confirmButtonColor: '#ef4444',
+                                            }).then(async (result) => {
+                                                if (result.isConfirmed && result.value) {
+                                                    try {
+                                                        const res = await fetch(`/api/categories?name=${result.value}`, {
+                                                            method: "DELETE"
+                                                        });
+                                                        if (res.ok) {
+                                                            Swal.fire("Deleted!", "Category removed, products updated.", "success");
+                                                            fetchCategories();
+                                                            fetchProducts();
+                                                            if (selectedCategory === result.value) setSelectedCategory("All");
+                                                            if (formData.category === result.value) setFormData(prev => ({ ...prev, category: "Uncategorized" }));
+                                                        }
+                                                    } catch (error) {
+                                                        Swal.fire("Error", "Failed to delete category", "error");
+                                                    }
+                                                }
+                                            });
+                                        } else {
+                                            setSelectedCategory(e.target.value);
+                                        }
+                                    }}
+                                    className="w-full pl-6 pr-10 py-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl appearance-none focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-xs md:text-sm cursor-pointer shadow-sm"
+                                >
+                                    <optgroup label="Filters">
+                                        {categories.map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Actions">
+                                        <option value="ADD_NEW" className="text-blue-600 font-black">+ Add New Category</option>
+                                        <option value="DELETE_CATEGORY" className="text-red-600 font-black">- Delete Category</option>
+                                    </optgroup>
+                                </select>
+                            </div>
                         </div>
-                        <div className="relative w-full md:w-72 group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search products..."
-                                className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-xs md:text-sm placeholder:font-medium shadow-sm"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+
+                        <div className="flex items-center gap-4 self-end md:self-auto">
+                            <h2 className="hidden md:block text-xl font-black text-gray-900 tracking-tight">Catalogue</h2>
+                            <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                                {products.length} Items
+                            </span>
                         </div>
                     </div>
 
@@ -394,7 +514,15 @@ export default function ProductsPage() {
                             <tbody className="divide-y divide-gray-50">
                                 {loading && products.length === 0 ? (
                                     <tr><td colSpan="5" className="px-8 py-20 text-center animate-pulse text-gray-400 font-bold italic">Loading inventory...</td></tr>
-                                ) : products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                                ) : products.filter(p => {
+                                    const searchLower = searchQuery.toLowerCase();
+                                    const matchesSearch = p.name.toLowerCase().includes(searchLower) ||
+                                        (p.description && p.description.toLowerCase().includes(searchLower));
+                                    const matchesCategory = selectedCategory === "All" ||
+                                        (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()) ||
+                                        ((!p.category || p.category.toLowerCase() === "uncategorized") && p.name.toLowerCase().includes(selectedCategory.toLowerCase()));
+                                    return matchesSearch && matchesCategory;
+                                }).length === 0 ? (
                                     <tr>
                                         <td colSpan="5" className="px-8 py-20 text-center">
                                             <ImageIcon size={40} className="mx-auto text-gray-200 mb-3" />
@@ -402,7 +530,15 @@ export default function ProductsPage() {
                                         </td>
                                     </tr>
                                 ) : (
-                                    products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map((product, index) => (
+                                    products.filter(p => {
+                                        const searchLower = searchQuery.toLowerCase();
+                                        const matchesSearch = p.name.toLowerCase().includes(searchLower) ||
+                                            (p.description && p.description.toLowerCase().includes(searchLower));
+                                        const matchesCategory = selectedCategory === "All" ||
+                                            (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()) ||
+                                            ((!p.category || p.category.toLowerCase() === "uncategorized") && p.name.toLowerCase().includes(selectedCategory.toLowerCase()));
+                                        return matchesSearch && matchesCategory;
+                                    }).map((product, index) => (
                                         <tr key={product._id} className="hover:bg-gray-50/50 transition-all font-bold group">
                                             <td className="px-8 py-6 text-xs text-gray-400 font-black">#{index + 1}</td>
                                             <td className="px-8 py-6">

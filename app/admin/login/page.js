@@ -40,8 +40,8 @@ export default function AdminLoginPage() {
 
             if (res.ok) {
                 Swal.fire({
-                    title: "Login Successful",
-                    text: "Welcome back, Admin!",
+                    title: "Logged in!",
+                    text: "Login successfully",
                     icon: "success",
                     timer: 1500,
                     showConfirmButton: false,

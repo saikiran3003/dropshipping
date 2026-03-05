@@ -57,7 +57,7 @@ function ImageMagnifier({ src, alt }) {
     );
 }
 
-export default function ProductDetailPage({ params }) {
+export default function DropshipperProductDetailPage({ params }) {
     const router = useRouter();
     const unwrappedParams = React.use(params);
     const id = unwrappedParams.id;
@@ -102,7 +102,6 @@ export default function ProductDetailPage({ params }) {
                         const imagePromises = product.images.map(async (imgUrl, index) => {
                             const response = await fetch(imgUrl);
                             const blob = await response.blob();
-                            // Shorter names help with preview stability on some devices
                             return new File([blob], `img${index + 1}.jpg`, { type: blob.type });
                         });
                         const files = await Promise.all(imagePromises);
@@ -113,8 +112,6 @@ export default function ProductDetailPage({ params }) {
                 }
 
                 const shareData = {
-                    // Some platforms ignore 'text' if 'title' is present when sharing files
-                    // We prioritize 'text' as it's more reliable for captions in 'Add message' boxes
                     text: shareText,
                     ...(filesArray.length > 0 && navigator.canShare?.({ files: filesArray }) ? { files: filesArray } : { title: shareText })
                 };
@@ -159,7 +156,7 @@ export default function ProductDetailPage({ params }) {
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
                 <h1 className="text-2xl font-black text-gray-900 mb-4 tracking-tight">Product Not Found</h1>
                 <button
-                    onClick={() => router.push("/admin/products")}
+                    onClick={() => router.push("/dropshipper/products")}
                     className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all"
                 >
                     Back to Products
@@ -169,17 +166,18 @@ export default function ProductDetailPage({ params }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50/50 p-4 md:p-10 space-y-10 animate-in fade-in duration-700">
+        <div className="min-h-screen bg-gray-50/50 p-4 md:p-10 space-y-10 animate-in fade-in duration-700 font-sans">
             {/* Header */}
             <div className="flex items-center gap-5">
                 <button
-                    onClick={() => router.push("/admin/products")}
+                    onClick={() => router.push("/dropshipper/products")}
                     className="p-3 bg-white border border-gray-200 rounded-2xl text-gray-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all active:scale-95 group shadow-sm"
                 >
                     <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
                 </button>
                 <div className="space-y-1">
                     <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">{product.name}</h1>
+                    <p className="text-sm text-gray-500 font-medium">Product Offer Details</p>
                 </div>
             </div>
 
@@ -218,13 +216,13 @@ export default function ProductDetailPage({ params }) {
                     <div className="space-y-6">
                         <div className="flex items-center gap-3">
                             <div className="bg-green-50 text-green-600 px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center gap-2">
-                                <Tag size={14} /> Global Catalogue
+                                <Tag size={14} /> Partner Offer
                             </div>
                         </div>
 
                         <div className="space-y-4">
                             <div className="flex items-center justify-between gap-4">
-                                <h2 className="text-4xl font-black text-gray-900 tracking-tight">Pricing & Sales</h2>
+                                <h2 className="text-4xl font-black text-gray-900 tracking-tight">Pricing & Offers</h2>
                                 <button
                                     onClick={handleShare}
                                     className="p-4 bg-gray-50 text-gray-400 hover:text-blue-600 hover:bg-blue-50/50 rounded-2xl transition-all active:scale-95 group border border-transparent hover:border-blue-100"
@@ -276,7 +274,7 @@ export default function ProductDetailPage({ params }) {
                             <div className="space-y-6">
                                 <div className="flex items-center gap-2 text-gray-900">
                                     <Layers size={20} className="text-blue-500" />
-                                    <h3 className="text-lg font-black uppercase tracking-widest text-xs">Bulk Pricing (Save More)</h3>
+                                    <h3 className="text-lg font-black uppercase tracking-widest text-xs">Bulk Pack Pricing</h3>
                                 </div>
                                 <div className="overflow-hidden rounded-[32px] border border-gray-100 shadow-sm bg-white">
                                     <table className="w-full text-left border-collapse">
@@ -284,7 +282,7 @@ export default function ProductDetailPage({ params }) {
                                             <tr className="bg-gray-50/50">
                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">Pack Of</th>
                                                 <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">Price</th>
-                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">Per Pcs Rate</th>
+                                                <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 border-b border-gray-100">Rate/Item</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -309,7 +307,7 @@ export default function ProductDetailPage({ params }) {
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-gray-900">
                             <Info size={20} className="text-blue-500" />
-                            <h3 className="text-lg font-black uppercase tracking-widest text-xs">Description</h3>
+                            <h3 className="text-lg font-black uppercase tracking-widest text-xs">Product Information</h3>
                         </div>
                         <p className="text-gray-500 font-medium leading-relaxed bg-gray-50/50 p-6 rounded-3xl border border-gray-100/50">
                             {product.description}
@@ -318,19 +316,19 @@ export default function ProductDetailPage({ params }) {
 
                     <div className="pt-6 border-t border-gray-100">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Stock Status</p>
-                                <p className="text-lg font-black text-green-600">In Inventory</p>
+                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-all hover:border-blue-100">
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Availability</p>
+                                <p className="text-lg font-black text-green-600">Instock</p>
                             </div>
-                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Catalogued</p>
-                                <p className="text-lg font-black text-gray-900">{new Date(product.createdAt).toLocaleDateString()}</p>
+                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-all hover:border-blue-100">
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Stock Code</p>
+                                <p className="text-lg font-black text-gray-900">#P-{product._id.slice(-6).toUpperCase()}</p>
                             </div>
                         </div>
                     </div>
 
                     <button className="w-full py-6 bg-gray-900 text-white font-black rounded-[32px] uppercase tracking-widest text-sm hover:bg-black transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-3 mt-auto">
-                        <ShoppingCart size={20} /> Preview in Store
+                        <ShoppingCart size={20} /> View Business Price
                     </button>
                 </div>
             </div>

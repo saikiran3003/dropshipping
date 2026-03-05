@@ -11,7 +11,8 @@ const ProductSchema = new mongoose.Schema({
             packOf: { type: Number, required: true },
             price: { type: Number, required: true },
         }
-    ]
+    ],
+    category: { type: String, default: 'Uncategorized' }
 }, { timestamps: true });
 
 if (mongoose.models.Product) {

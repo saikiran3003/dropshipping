@@ -27,6 +27,13 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
+        // Verify Subscription
+        if (dropshipper.subscriptionStatus !== "Added") {
+            return NextResponse.json({
+                error: "Access Denied: Please complete your subscription payment to log in."
+            }, { status: 403 });
+        }
+
         // Create JWT token
         const token = jwt.sign(
             {
