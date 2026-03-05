@@ -92,26 +92,28 @@ export default function ProductDetailPage({ params }) {
     const handleShare = async () => {
         const tier = product.bulkPricing?.find(t => t.packOf === quantity);
         const currentPrice = tier ? tier.price : (product.salePrice * quantity);
-        const shareText = `Check out this product: ${product.name}\nPrice: ₹${currentPrice.toLocaleString()}\nDescription: ${product.description}`;
+        const shareText = `🛍️ *${product.name}*\n\n💰 *Price:* ₹${currentPrice.toLocaleString()}\n\n📝 *Description:* ${product.description}`;
 
         try {
             if (navigator.share) {
                 const filesArray = [];
-                if (activeImage) {
+                if (product.images && product.images.length > 0) {
                     try {
-                        const response = await fetch(activeImage);
-                        const blob = await response.blob();
-                        const file = new File([blob], "product-image.jpg", { type: blob.type });
-                        filesArray.push(file);
+                        const imagePromises = product.images.map(async (imgUrl, index) => {
+                            const response = await fetch(imgUrl);
+                            const blob = await response.blob();
+                            return new File([blob], `product-image-${index + 1}.jpg`, { type: blob.type });
+                        });
+                        const files = await Promise.all(imagePromises);
+                        filesArray.push(...files);
                     } catch (imageError) {
-                        console.error("Failed to fetch image for sharing:", imageError);
+                        console.error("Failed to fetch images for sharing:", imageError);
                     }
                 }
 
                 const shareData = {
-                    title: product.name,
+                    title: shareText,
                     text: shareText,
-                    url: window.location.href,
                     ...(filesArray.length > 0 && navigator.canShare?.({ files: filesArray }) ? { files: filesArray } : {})
                 };
 
@@ -122,7 +124,7 @@ export default function ProductDetailPage({ params }) {
         } catch (error) {
             console.warn("Native share failed, falling back to clipboard:", error);
             try {
-                await navigator.clipboard.writeText(`${shareText}\nLink: ${window.location.href}`);
+                await navigator.clipboard.writeText(shareText);
                 Swal.fire({
                     icon: "success",
                     title: "Copied to Clipboard!",
