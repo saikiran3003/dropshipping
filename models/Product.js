@@ -12,7 +12,8 @@ const ProductSchema = new mongoose.Schema({
             price: { type: Number, required: true },
         }
     ],
-    category: { type: String, default: 'Uncategorized' }
+    category: { type: String, default: 'Uncategorized' },
+    commissionPercentage: { type: Number, default: 20 }
 }, { timestamps: true });
 
 if (mongoose.models.Product) {

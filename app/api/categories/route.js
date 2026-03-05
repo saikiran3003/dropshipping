@@ -40,6 +40,38 @@ export async function POST(req) {
     }
 }
 
+export async function PUT(req) {
+    try {
+        await dbConnect();
+        const { oldName, newName } = await req.json();
+
+        if (!oldName || !newName) {
+            return NextResponse.json({ message: "Old and new names are required" }, { status: 400 });
+        }
+
+        const normalizedNewName = newName.trim().charAt(0).toUpperCase() + newName.trim().slice(1).toLowerCase();
+
+        // Update Category document
+        const updatedCategory = await Category.findOneAndUpdate(
+            { name: oldName },
+            { name: normalizedNewName },
+            { new: true }
+        );
+
+        if (!updatedCategory) {
+            return NextResponse.json({ message: "Category not found" }, { status: 404 });
+        }
+
+        // Update all products with this category
+        await Product.updateMany({ category: oldName }, { category: normalizedNewName });
+
+        return NextResponse.json({ message: "Category updated successfully", data: updatedCategory });
+    } catch (error) {
+        console.error("CATEGORY PUT ERROR:", error);
+        return NextResponse.json({ message: error.message }, { status: 500 });
+    }
+}
+
 export async function DELETE(req) {
     try {
         await dbConnect();

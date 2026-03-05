@@ -30,14 +30,122 @@ export default function ProductsPage() {
         salePrice: "",
         images: [],
         bulkPricing: [],
-        category: "Uncategorized"
+        category: "Uncategorized",
+        commissionPercentage: 20
     });
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [categories, setCategories] = useState(["All", "Uncategorized"]);
     const [newTier, setNewTier] = useState({ packOf: "", price: "" });
     const [bulkTierEditIndex, setBulkTierEditIndex] = useState(null);
+    const [showForm, setShowForm] = useState(false);
     const formRef = useRef(null);
+
+    const handleCategoryAction = async (action) => {
+        if (action === "ADD_NEW") {
+            const { value: name } = await Swal.fire({
+                title: 'Add New Category',
+                input: 'text',
+                inputPlaceholder: 'Enter category name...',
+                showCancelButton: true,
+                confirmButtonText: 'Add',
+                confirmButtonColor: '#2563eb',
+            });
+
+            if (name && name.trim()) {
+                try {
+                    const res = await fetch("/api/categories", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: name.trim() })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        await fetchCategories();
+                        return data.data.name;
+                    } else {
+                        const err = await res.json();
+                        Swal.fire("Error", err.message, "error");
+                    }
+                } catch (error) {
+                    Swal.fire("Error", "Failed to add category", "error");
+                }
+            }
+        } else if (action === "EDIT_CATEGORY") {
+            const catsToEdit = categories.filter(c => c !== "All" && c !== "Uncategorized");
+            const { value: oldName } = await Swal.fire({
+                title: 'Edit Category Name',
+                text: 'Select a category to rename.',
+                input: 'select',
+                inputOptions: catsToEdit.reduce((acc, curr) => ({ ...acc, [curr]: curr }), {}),
+                inputPlaceholder: 'Select category',
+                showCancelButton: true,
+                confirmButtonText: 'Select',
+                confirmButtonColor: '#2563eb',
+            });
+
+            if (oldName) {
+                const { value: newName } = await Swal.fire({
+                    title: `Rename "${oldName}"`,
+                    input: 'text',
+                    inputValue: oldName,
+                    showCancelButton: true,
+                    confirmButtonText: 'Update',
+                    confirmButtonColor: '#2563eb',
+                });
+
+                if (newName && newName.trim()) {
+                    try {
+                        const res = await fetch("/api/categories", {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ oldName, newName: newName.trim() })
+                        });
+                        if (res.ok) {
+                            Swal.fire("Success", "Category renamed and products updated.", "success");
+                            await fetchCategories();
+                            fetchProducts();
+                            return newName.trim();
+                        } else {
+                            const err = await res.json();
+                            Swal.fire("Error", err.message, "error");
+                        }
+                    } catch (error) {
+                        Swal.fire("Error", "Failed to update category", "error");
+                    }
+                }
+            }
+        } else if (action === "DELETE_CATEGORY") {
+            const catsToDelete = categories.filter(c => c !== "All" && c !== "Uncategorized");
+            const { value: nameToDelete } = await Swal.fire({
+                title: 'Delete Category',
+                text: 'Select a category to delete. Warning: Products in this category will become Uncategorized.',
+                input: 'select',
+                inputOptions: catsToDelete.reduce((acc, curr) => ({ ...acc, [curr]: curr }), {}),
+                inputPlaceholder: 'Select category',
+                showCancelButton: true,
+                confirmButtonText: 'Delete',
+                confirmButtonColor: '#ef4444',
+            });
+
+            if (nameToDelete) {
+                try {
+                    const res = await fetch(`/api/categories?name=${nameToDelete}`, {
+                        method: "DELETE"
+                    });
+                    if (res.ok) {
+                        Swal.fire("Deleted!", "Category removed, products updated.", "success");
+                        await fetchCategories();
+                        fetchProducts();
+                        return "Uncategorized";
+                    }
+                } catch (error) {
+                    Swal.fire("Error", "Failed to delete category", "error");
+                }
+            }
+        }
+        return null;
+    };
 
     const fetchCategories = async () => {
         try {
@@ -147,9 +255,10 @@ export default function ProductsPage() {
                     timer: 1500,
                     showConfirmButton: false
                 });
-                setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized" });
+                setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionPercentage: 20 });
                 setIsEditMode(false);
                 setEditingId(null);
+                setShowForm(false);
                 fetchProducts();
             } else {
                 const err = await res.json();
@@ -170,11 +279,15 @@ export default function ProductsPage() {
             salePrice: product.salePrice,
             images: product.images || [],
             bulkPricing: product.bulkPricing || [],
-            category: product.category || "Uncategorized"
+            category: product.category || "Uncategorized",
+            commissionPercentage: product.commissionPercentage || 20
         });
         setIsEditMode(true);
         setEditingId(product._id);
-        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        setShowForm(true);
+        setTimeout(() => {
+            formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
     };
 
     const handleDelete = async (id) => {
@@ -203,193 +316,239 @@ export default function ProductsPage() {
     return (
         <div className="p-4 md:p-10 space-y-10 animate-in fade-in duration-700 bg-gray-50/50 min-h-screen font-sans">
             {/* Header */}
-            <div className="flex items-center gap-5">
-                <button
-                    onClick={() => router.push('/admin/dashboard')}
-                    className="p-3 bg-white border border-gray-200 rounded-2xl text-gray-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all active:scale-95 group shadow-sm"
-                >
-                    <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
-                </button>
-                <div className="space-y-1">
-                    <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">Manage Products</h1>
-                    <p className="text-sm text-gray-500 font-medium">Control your inventory and pricing strategy.</p>
+            <div className="flex items-center justify-between gap-5">
+                <div className="flex items-center gap-5">
+                    <button
+                        onClick={() => router.push('/admin/dashboard')}
+                        className="p-3 bg-white border border-gray-200 rounded-2xl text-gray-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all active:scale-95 group shadow-sm"
+                    >
+                        <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+                    </button>
+                    <div className="space-y-1">
+                        <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">Manage Products</h1>
+                        <p className="text-sm text-gray-500 font-medium">Control your inventory and pricing strategy.</p>
+                    </div>
                 </div>
+
+                <button
+                    onClick={() => {
+                        if (showForm && isEditMode) {
+                            setIsEditMode(false);
+                            setEditingId(null);
+                            setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionPercentage: 20 });
+                        }
+                        setShowForm(!showForm);
+                    }}
+                    className={`flex items-center gap-3 px-6 py-4 rounded-[24px] font-black uppercase tracking-widest text-sm transition-all active:scale-95 shadow-lg ${showForm ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 shadow-gray-100' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'}`}
+                >
+                    {showForm ? <X size={20} /> : <Plus size={20} />}
+                    <span className="hidden md:block">{showForm ? "Close Form" : "Add Product"}</span>
+                </button>
             </div>
 
             {/* Main Content Grid */}
             <div className="grid grid-cols-1 gap-12">
                 {/* Add/Edit Product Form */}
-                <div ref={formRef} className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 md:p-12 max-w-3xl">
-                    <div className="flex items-center gap-4 mb-10">
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
-                            <Plus size={24} />
+                {showForm && (
+                    <div ref={formRef} className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 md:p-12 max-w-3xl animate-in slide-in-from-top duration-500">
+                        <div className="flex items-center gap-4 mb-10">
+                            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
+                                <Plus size={24} />
+                            </div>
+                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+                                {isEditMode ? "Edit Product" : "Add Product"}
+                            </h2>
                         </div>
-                        <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-                            {isEditMode ? "Edit Product" : "Add Product"}
-                        </h2>
-                    </div>
 
-                    <form onSubmit={handleSubmit} className="space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Product Name</label>
-                                <input
-                                    required
-                                    value={formData.name}
-                                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
-                                    placeholder="e.g. Premium Wireless Headphones"
-                                />
-                            </div>
-
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Category</label>
-                                <select
-                                    value={formData.category}
-                                    onChange={e => setFormData({ ...formData, category: e.target.value })}
-                                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm appearance-none cursor-pointer"
-                                >
-                                    {categories.filter(c => c !== "All").map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">MRP Price (₹)</label>
-                                <input
-                                    required
-                                    type="number"
-                                    value={formData.mrpPrice}
-                                    onChange={e => setFormData({ ...formData, mrpPrice: e.target.value })}
-                                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
-                                    placeholder="0"
-                                />
-                            </div>
-
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Sale Price (₹)</label>
-                                <input
-                                    required
-                                    type="number"
-                                    value={formData.salePrice}
-                                    onChange={e => setFormData({ ...formData, salePrice: e.target.value })}
-                                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
-                                    placeholder="0"
-                                />
-                            </div>
-
-                            <div className="md:col-span-2 space-y-2 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Description</label>
-                                <textarea
-                                    required
-                                    rows={4}
-                                    value={formData.description}
-                                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm resize-none"
-                                    placeholder="Describe the product features and benefits..."
-                                />
-                            </div>
-
-                            <div className="md:col-span-2 space-y-4 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest block">Product Images</label>
-                                <div className="flex flex-wrap gap-4">
-                                    {formData.images.map((img, idx) => (
-                                        <div key={idx} className="relative w-24 h-24 rounded-2xl overflow-hidden border border-gray-100 group shadow-sm bg-white">
-                                            <img src={img} alt="" className="w-full h-full object-cover" />
-                                            <button
-                                                type="button"
-                                                onClick={() => removeImage(idx)}
-                                                className="absolute top-1 right-1 p-1.5 bg-white/90 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                                            >
-                                                <X size={14} />
-                                            </button>
-                                        </div>
-                                    ))}
-                                    <label className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-all cursor-pointer bg-white group">
-                                        <Plus size={24} className="group-hover:scale-110 transition-transform" />
-                                        <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                    </label>
+                        <form onSubmit={handleSubmit} className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-2 text-left">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Product Name</label>
+                                    <input
+                                        required
+                                        value={formData.name}
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
+                                        placeholder="e.g. Premium Wireless Headphones"
+                                    />
                                 </div>
-                            </div>
 
-                            {/* Bulk Pricing Section */}
-                            <div className="md:col-span-2 space-y-6 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100/50">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest block">Bulk Pricing Tiers (Pack Of Pricing)</label>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                                    <div className="space-y-2">
-                                        <label className="text-[9px] uppercase font-black ml-2 text-gray-400">Pack Of</label>
-                                        <input
-                                            type="number"
-                                            value={newTier.packOf}
-                                            onChange={e => setNewTier({ ...newTier, packOf: e.target.value })}
-                                            className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-900"
-                                            placeholder="e.g. 100"
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[9px] uppercase font-black ml-2 text-gray-400">Price (₹)</label>
-                                        <input
-                                            type="number"
-                                            value={newTier.price}
-                                            onChange={e => setNewTier({ ...newTier, price: e.target.value })}
-                                            className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-900"
-                                            placeholder="e.g. 1069"
-                                        />
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={addBulkTier}
-                                        className={`py-3 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] transition-all active:scale-95 ${bulkTierEditIndex !== null ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-100' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100'}`}
+                                <div className="space-y-2 text-left">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Category</label>
+                                    <select
+                                        value={formData.category}
+                                        onChange={async (e) => {
+                                            if (["ADD_NEW", "EDIT_CATEGORY", "DELETE_CATEGORY"].includes(e.target.value)) {
+                                                const result = await handleCategoryAction(e.target.value);
+                                                if (result) setFormData({ ...formData, category: result });
+                                            } else {
+                                                setFormData({ ...formData, category: e.target.value });
+                                            }
+                                        }}
+                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm appearance-none cursor-pointer"
                                     >
-                                        {bulkTierEditIndex !== null ? 'Update Tier' : 'Add Tier'}
-                                    </button>
+                                        <optgroup label="Categories">
+                                            {categories.filter(c => c !== "All").map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))}
+                                        </optgroup>
+                                        <optgroup label="Management">
+                                            <option value="ADD_NEW" className="text-blue-600 font-black">+ Add New Category</option>
+                                            <option value="EDIT_CATEGORY" className="text-orange-600 font-black">✎ Edit Category</option>
+                                            <option value="DELETE_CATEGORY" className="text-red-600 font-black">- Delete Category</option>
+                                        </optgroup>
+                                    </select>
                                 </div>
 
-                                {formData.bulkPricing.length > 0 && (
-                                    <div className="mt-6 flex flex-wrap gap-3">
-                                        {formData.bulkPricing.map((tier, idx) => (
-                                            <div key={idx} className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm transition-all ${bulkTierEditIndex === idx ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-100' : 'bg-white border-gray-100'}`}>
-                                                <span className="text-xs font-black text-gray-900">Pack of {tier.packOf}: ₹{tier.price}</span>
-                                                <div className="flex items-center gap-1 border-l border-gray-100 pl-2 ml-1">
-                                                    <button type="button" onClick={() => editBulkTier(idx)} className="text-blue-400 hover:text-blue-600 p-1 transition-colors">
-                                                        <Pencil size={12} />
-                                                    </button>
-                                                    <button type="button" onClick={() => removeBulkTier(idx)} className="text-red-400 hover:text-red-600 p-1 transition-colors">
-                                                        <X size={14} />
-                                                    </button>
-                                                </div>
+                                <div className="space-y-2 text-left">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">MRP Price (₹)</label>
+                                    <input
+                                        required
+                                        type="number"
+                                        value={formData.mrpPrice}
+                                        onChange={e => setFormData({ ...formData, mrpPrice: e.target.value })}
+                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 text-left">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Sale Price (₹)</label>
+                                    <input
+                                        required
+                                        type="number"
+                                        value={formData.salePrice}
+                                        onChange={e => setFormData({ ...formData, salePrice: e.target.value })}
+                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 text-left">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Commission (%)</label>
+                                    <input
+                                        required
+                                        type="number"
+                                        value={formData.commissionPercentage}
+                                        onChange={e => setFormData({ ...formData, commissionPercentage: e.target.value })}
+                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
+                                        placeholder="20"
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2 space-y-2 text-left">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Description</label>
+                                    <textarea
+                                        required
+                                        rows={4}
+                                        value={formData.description}
+                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm resize-none"
+                                        placeholder="Describe the product features and benefits..."
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2 space-y-4 text-left">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest block">Product Images</label>
+                                    <div className="flex flex-wrap gap-4">
+                                        {formData.images.map((img, idx) => (
+                                            <div key={idx} className="relative w-24 h-24 rounded-2xl overflow-hidden border border-gray-100 group shadow-sm bg-white">
+                                                <img src={img} alt="" className="w-full h-full object-cover" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeImage(idx)}
+                                                    className="absolute top-1 right-1 p-1.5 bg-white/90 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                                                >
+                                                    <X size={14} />
+                                                </button>
                                             </div>
                                         ))}
+                                        <label className="w-24 h-24 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-all cursor-pointer bg-white group">
+                                            <Plus size={24} className="group-hover:scale-110 transition-transform" />
+                                            <input type="file" multiple accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                        </label>
                                     </div>
+                                </div>
+
+                                {/* Bulk Pricing Section */}
+                                <div className="md:col-span-2 space-y-6 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100/50">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest block">Bulk Pricing Tiers (Pack Of Pricing)</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                                        <div className="space-y-2">
+                                            <label className="text-[9px] uppercase font-black ml-2 text-gray-400">Pack Of</label>
+                                            <input
+                                                type="number"
+                                                value={newTier.packOf}
+                                                onChange={e => setNewTier({ ...newTier, packOf: e.target.value })}
+                                                className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-900"
+                                                placeholder="e.g. 100"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[9px] uppercase font-black ml-2 text-gray-400">Price (₹)</label>
+                                            <input
+                                                type="number"
+                                                value={newTier.price}
+                                                onChange={e => setNewTier({ ...newTier, price: e.target.value })}
+                                                className="w-full px-5 py-3 bg-white border border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-900"
+                                                placeholder="e.g. 1069"
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={addBulkTier}
+                                            className={`py-3 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] transition-all active:scale-95 ${bulkTierEditIndex !== null ? 'bg-orange-500 hover:bg-orange-600 shadow-orange-100' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-100'}`}
+                                        >
+                                            {bulkTierEditIndex !== null ? 'Update Tier' : 'Add Tier'}
+                                        </button>
+                                    </div>
+
+                                    {formData.bulkPricing.length > 0 && (
+                                        <div className="mt-6 flex flex-wrap gap-3">
+                                            {formData.bulkPricing.map((tier, idx) => (
+                                                <div key={idx} className={`flex items-center gap-3 px-4 py-2 rounded-xl border shadow-sm transition-all ${bulkTierEditIndex === idx ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-100' : 'bg-white border-gray-100'}`}>
+                                                    <span className="text-xs font-black text-gray-900">Pack of {tier.packOf}: ₹{tier.price}</span>
+                                                    <div className="flex items-center gap-1 border-l border-gray-100 pl-2 ml-1">
+                                                        <button type="button" onClick={() => editBulkTier(idx)} className="text-blue-400 hover:text-blue-600 p-1 transition-colors">
+                                                            <Pencil size={12} />
+                                                        </button>
+                                                        <button type="button" onClick={() => removeBulkTier(idx)} className="text-red-400 hover:text-red-600 p-1 transition-colors">
+                                                            <X size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="flex-1 py-5 bg-green-600 text-white font-black rounded-[24px] shadow-lg shadow-green-100 uppercase tracking-widest text-sm hover:bg-green-700 transition-all active:scale-[0.98] disabled:opacity-50"
+                                >
+                                    {isEditMode ? "Update Product" : "Save Product"}
+                                </button>
+                                {isEditMode && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsEditMode(false);
+                                            setEditingId(null);
+                                            setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionPercentage: 20 });
+                                            setShowForm(false);
+                                        }}
+                                        className="px-8 py-5 bg-gray-100 text-gray-500 font-black rounded-[24px] uppercase tracking-widest text-sm hover:bg-gray-200 transition-all active:scale-[0.98]"
+                                    >
+                                        Cancel
+                                    </button>
                                 )}
                             </div>
-                        </div>
-
-                        <div className="flex gap-4">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="flex-1 py-5 bg-green-600 text-white font-black rounded-[24px] shadow-lg shadow-green-100 uppercase tracking-widest text-sm hover:bg-green-700 transition-all active:scale-[0.98] disabled:opacity-50"
-                            >
-                                {isEditMode ? "Update Product" : "Save Product"}
-                            </button>
-                            {isEditMode && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsEditMode(false);
-                                        setEditingId(null);
-                                        setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized" });
-                                    }}
-                                    className="px-8 py-5 bg-gray-100 text-gray-500 font-black rounded-[24px] uppercase tracking-widest text-sm hover:bg-gray-200 transition-all active:scale-[0.98]"
-                                >
-                                    Cancel
-                                </button>
-                            )}
-                        </div>
-                    </form>
-                </div>
+                        </form>
+                    </div>
+                )}
 
                 {/* Products List Grid */}
                 <div className="bg-white rounded-3xl md:rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
@@ -410,83 +569,13 @@ export default function ProductsPage() {
                                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={16} />
                                 <select
                                     value={selectedCategory}
-                                    onChange={(e) => {
-                                        if (e.target.value === "ADD_NEW") {
-                                            Swal.fire({
-                                                title: 'Add New Category',
-                                                input: 'text',
-                                                inputPlaceholder: 'Enter category name...',
-                                                showCancelButton: true,
-                                                confirmButtonText: 'Add',
-                                                confirmButtonColor: '#2563eb',
-                                            }).then(async (result) => {
-                                                if (result.isConfirmed && result.value) {
-                                                    const newCatInput = result.value.trim();
-                                                    if (newCatInput) {
-                                                        try {
-                                                            const res = await fetch("/api/categories", {
-                                                                method: "POST",
-                                                                headers: { "Content-Type": "application/json" },
-                                                                body: JSON.stringify({ name: newCatInput })
-                                                            });
-                                                            if (res.ok) {
-                                                                fetchCategories();
-                                                                const data = await res.json();
-                                                                setSelectedCategory(data.data.name);
-                                                                setFormData(prev => ({ ...prev, category: data.data.name }));
-                                                            } else {
-                                                                const err = await res.json();
-                                                                Swal.fire("Error", err.message, "error");
-                                                            }
-                                                        } catch (error) {
-                                                            Swal.fire("Error", "Failed to add category", "error");
-                                                        }
-                                                    }
-                                                }
-                                            });
-                                        } else if (e.target.value === "DELETE_CATEGORY") {
-                                            const catsToDelete = categories.filter(c => c !== "All" && c !== "Uncategorized");
-                                            Swal.fire({
-                                                title: 'Delete Category',
-                                                text: 'Select a category to delete. Warning: Products in this category will become Uncategorized.',
-                                                input: 'select',
-                                                inputOptions: catsToDelete.reduce((acc, curr) => ({ ...acc, [curr]: curr }), {}),
-                                                inputPlaceholder: 'Select category',
-                                                showCancelButton: true,
-                                                confirmButtonText: 'Delete',
-                                                confirmButtonColor: '#ef4444',
-                                            }).then(async (result) => {
-                                                if (result.isConfirmed && result.value) {
-                                                    try {
-                                                        const res = await fetch(`/api/categories?name=${result.value}`, {
-                                                            method: "DELETE"
-                                                        });
-                                                        if (res.ok) {
-                                                            Swal.fire("Deleted!", "Category removed, products updated.", "success");
-                                                            fetchCategories();
-                                                            fetchProducts();
-                                                            if (selectedCategory === result.value) setSelectedCategory("All");
-                                                            if (formData.category === result.value) setFormData(prev => ({ ...prev, category: "Uncategorized" }));
-                                                        }
-                                                    } catch (error) {
-                                                        Swal.fire("Error", "Failed to delete category", "error");
-                                                    }
-                                                }
-                                            });
-                                        } else {
-                                            setSelectedCategory(e.target.value);
-                                        }
-                                    }}
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
                                     className="w-full pl-6 pr-10 py-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl appearance-none focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-xs md:text-sm cursor-pointer shadow-sm"
                                 >
                                     <optgroup label="Filters">
                                         {categories.map(cat => (
                                             <option key={cat} value={cat}>{cat}</option>
                                         ))}
-                                    </optgroup>
-                                    <optgroup label="Actions">
-                                        <option value="ADD_NEW" className="text-blue-600 font-black">+ Add New Category</option>
-                                        <option value="DELETE_CATEGORY" className="text-red-600 font-black">- Delete Category</option>
                                     </optgroup>
                                 </select>
                             </div>
@@ -508,12 +597,13 @@ export default function ProductsPage() {
                                     <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Image</th>
                                     <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Product Details</th>
                                     <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Pricing (₹)</th>
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Commission (₹)</th>
                                     <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {loading && products.length === 0 ? (
-                                    <tr><td colSpan="5" className="px-8 py-20 text-center animate-pulse text-gray-400 font-bold italic">Loading inventory...</td></tr>
+                                    <tr><td colSpan="6" className="px-8 py-20 text-center animate-pulse text-gray-400 font-bold italic">Loading inventory...</td></tr>
                                 ) : products.filter(p => {
                                     const searchLower = searchQuery.toLowerCase();
                                     const matchesSearch = p.name.toLowerCase().includes(searchLower) ||
@@ -524,7 +614,7 @@ export default function ProductsPage() {
                                     return matchesSearch && matchesCategory;
                                 }).length === 0 ? (
                                     <tr>
-                                        <td colSpan="5" className="px-8 py-20 text-center">
+                                        <td colSpan="6" className="px-8 py-20 text-center">
                                             <ImageIcon size={40} className="mx-auto text-gray-200 mb-3" />
                                             <p className="text-gray-400 font-bold italic">No matching products found.</p>
                                         </td>
@@ -565,6 +655,16 @@ export default function ProductsPage() {
                                                             {Math.round(((product.mrpPrice - product.salePrice) / product.mrpPrice) * 100)}% OFF
                                                         </p>
                                                     </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6 text-right">
+                                                <div className="flex flex-col items-end">
+                                                    <p className="text-sm text-green-600 font-black">
+                                                        ₹{((product.salePrice * (product.commissionPercentage || 20)) / 100).toLocaleString()}
+                                                    </p>
+                                                    <p className="text-[9px] text-gray-400 font-bold">
+                                                        ({product.commissionPercentage || 20}%)
+                                                    </p>
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6">
