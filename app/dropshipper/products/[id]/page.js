@@ -304,17 +304,37 @@ export default function DropshipperProductDetailPage({ params }) {
                         )}
                     </div>
 
-                    <div className="space-y-6">
-                        <div className="flex items-center gap-2 text-gray-900">
-                            <Info size={20} className="text-blue-500" />
-                            <h3 className="text-lg font-black uppercase tracking-widest text-xs">Product Information</h3>
+                    <div className="pt-6 border-t border-gray-100">
+                        <div className="bg-blue-600 p-8 rounded-[36px] text-white shadow-2xl shadow-blue-100 relative overflow-hidden group">
+                            <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+                            <div className="relative z-10 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100">Your Potential Earnings</p>
+                                    <div className="bg-white/20 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider backdrop-blur-md border border-white/10">
+                                        Commission: {product.commissionValue}{product.commissionType === "Percentage" ? "%" : " Flat"}
+                                    </div>
+                                </div>
+                                <div className="flex items-end gap-2">
+                                    <h3 className="text-4xl md:text-5xl font-black tracking-tighter leading-none">
+                                        ₹{(() => {
+                                            const tier = product.bulkPricing?.find(t => t.packOf === quantity);
+                                            const basePrice = tier ? tier.price : (product.salePrice * quantity);
+                                            const earnings = product.commissionType === "Percentage"
+                                                ? (basePrice * (product.commissionValue || 0)) / 100
+                                                : (product.commissionValue || 0) * quantity;
+                                            return Math.round(earnings).toLocaleString();
+                                        })()}
+                                    </h3>
+                                    <p className="text-blue-100 font-bold mb-1.5 opacity-80 italic text-sm">Profit per sale</p>
+                                </div>
+                                <p className="text-xs text-blue-100/70 font-medium leading-relaxed">
+                                    This is your estimated commission for selling {quantity} {quantity === 1 ? 'unit' : 'units'} of this product.
+                                </p>
+                            </div>
                         </div>
-                        <p className="text-gray-500 font-medium leading-relaxed bg-gray-50/50 p-6 rounded-3xl border border-gray-100/50">
-                            {product.description}
-                        </p>
                     </div>
 
-                    <div className="pt-6 border-t border-gray-100">
+                    <div className="pt-6">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm transition-all hover:border-blue-100">
                                 <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Availability</p>
@@ -327,8 +347,18 @@ export default function DropshipperProductDetailPage({ params }) {
                         </div>
                     </div>
 
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 text-gray-900">
+                            <Info size={20} className="text-blue-500" />
+                            <h3 className="text-lg font-black uppercase tracking-widest text-xs">Product Information</h3>
+                        </div>
+                        <p className="text-gray-500 font-medium leading-relaxed bg-gray-50/50 p-6 rounded-3xl border border-gray-100/50">
+                            {product.description}
+                        </p>
+                    </div>
+
                     <button className="w-full py-6 bg-gray-900 text-white font-black rounded-[32px] uppercase tracking-widest text-sm hover:bg-black transition-all active:scale-[0.98] shadow-2xl flex items-center justify-center gap-3 mt-auto">
-                        <ShoppingCart size={20} /> View Business Price
+                        <ShoppingCart size={20} /> Download Marketing Assets
                     </button>
                 </div>
             </div>

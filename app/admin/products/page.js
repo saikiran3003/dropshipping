@@ -31,7 +31,8 @@ export default function ProductsPage() {
         images: [],
         bulkPricing: [],
         category: "Uncategorized",
-        commissionPercentage: 20
+        commissionType: "Percentage",
+        commissionValue: 20
     });
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");
@@ -41,118 +42,13 @@ export default function ProductsPage() {
     const [showForm, setShowForm] = useState(false);
     const formRef = useRef(null);
 
-    const handleCategoryAction = async (action) => {
-        if (action === "ADD_NEW") {
-            const { value: name } = await Swal.fire({
-                title: 'Add New Category',
-                input: 'text',
-                inputPlaceholder: 'Enter category name...',
-                showCancelButton: true,
-                confirmButtonText: 'Add',
-                confirmButtonColor: '#2563eb',
-            });
-
-            if (name && name.trim()) {
-                try {
-                    const res = await fetch("/api/categories", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ name: name.trim() })
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        await fetchCategories();
-                        return data.data.name;
-                    } else {
-                        const err = await res.json();
-                        Swal.fire("Error", err.message, "error");
-                    }
-                } catch (error) {
-                    Swal.fire("Error", "Failed to add category", "error");
-                }
-            }
-        } else if (action === "EDIT_CATEGORY") {
-            const catsToEdit = categories.filter(c => c !== "All" && c !== "Uncategorized");
-            const { value: oldName } = await Swal.fire({
-                title: 'Edit Category Name',
-                text: 'Select a category to rename.',
-                input: 'select',
-                inputOptions: catsToEdit.reduce((acc, curr) => ({ ...acc, [curr]: curr }), {}),
-                inputPlaceholder: 'Select category',
-                showCancelButton: true,
-                confirmButtonText: 'Select',
-                confirmButtonColor: '#2563eb',
-            });
-
-            if (oldName) {
-                const { value: newName } = await Swal.fire({
-                    title: `Rename "${oldName}"`,
-                    input: 'text',
-                    inputValue: oldName,
-                    showCancelButton: true,
-                    confirmButtonText: 'Update',
-                    confirmButtonColor: '#2563eb',
-                });
-
-                if (newName && newName.trim()) {
-                    try {
-                        const res = await fetch("/api/categories", {
-                            method: "PUT",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ oldName, newName: newName.trim() })
-                        });
-                        if (res.ok) {
-                            Swal.fire("Success", "Category renamed and products updated.", "success");
-                            await fetchCategories();
-                            fetchProducts();
-                            return newName.trim();
-                        } else {
-                            const err = await res.json();
-                            Swal.fire("Error", err.message, "error");
-                        }
-                    } catch (error) {
-                        Swal.fire("Error", "Failed to update category", "error");
-                    }
-                }
-            }
-        } else if (action === "DELETE_CATEGORY") {
-            const catsToDelete = categories.filter(c => c !== "All" && c !== "Uncategorized");
-            const { value: nameToDelete } = await Swal.fire({
-                title: 'Delete Category',
-                text: 'Select a category to delete. Warning: Products in this category will become Uncategorized.',
-                input: 'select',
-                inputOptions: catsToDelete.reduce((acc, curr) => ({ ...acc, [curr]: curr }), {}),
-                inputPlaceholder: 'Select category',
-                showCancelButton: true,
-                confirmButtonText: 'Delete',
-                confirmButtonColor: '#ef4444',
-            });
-
-            if (nameToDelete) {
-                try {
-                    const res = await fetch(`/api/categories?name=${nameToDelete}`, {
-                        method: "DELETE"
-                    });
-                    if (res.ok) {
-                        Swal.fire("Deleted!", "Category removed, products updated.", "success");
-                        await fetchCategories();
-                        fetchProducts();
-                        return "Uncategorized";
-                    }
-                } catch (error) {
-                    Swal.fire("Error", "Failed to delete category", "error");
-                }
-            }
-        }
-        return null;
-    };
 
     const fetchCategories = async () => {
         try {
             const res = await fetch("/api/categories");
             if (res.ok) {
                 const data = await res.json();
-                const catNames = data.map(c => c.name);
+                const catNames = data.map(c => typeof c.name === 'string' ? c.name : String(c.name || ""));
                 setCategories(["All", ...catNames, "Uncategorized"]);
             }
         } catch (error) {
@@ -165,7 +61,11 @@ export default function ProductsPage() {
             const res = await fetch("/api/admin/products");
             if (res.ok) {
                 const data = await res.json();
-                setProducts(data);
+                const sanitizedData = data.map(p => ({
+                    ...p,
+                    category: typeof p.category === 'string' ? p.category : String(p.category?.name || "Uncategorized")
+                }));
+                setProducts(sanitizedData);
             }
         } catch (error) {
             console.error("Failed to fetch products:", error);
@@ -202,21 +102,41 @@ export default function ProductsPage() {
 
     const addBulkTier = () => {
         if (!newTier.packOf || !newTier.price) return;
-
-        setFormData(prev => {
-            const updatedBulk = [...prev.bulkPricing];
-            if (bulkTierEditIndex !== null) {
-                // Update existing
-                updatedBulk[bulkTierEditIndex] = { ...newTier, packOf: Number(newTier.packOf), price: Number(newTier.price) };
-            } else {
-                // Add new
-                updatedBulk.push({ ...newTier, packOf: Number(newTier.packOf), price: Number(newTier.price) });
-            }
-            return { ...prev, bulkPricing: updatedBulk };
-        });
-
+        let updatedBulk = [...formData.bulkPricing];
+        if (bulkTierEditIndex !== null) {
+            updatedBulk[bulkTierEditIndex] = { packOf: Number(newTier.packOf), price: Number(newTier.price) };
+        } else {
+            updatedBulk.push({ packOf: Number(newTier.packOf), price: Number(newTier.price) });
+        }
+        // Auto-sort by packOf
+        updatedBulk.sort((a, b) => a.packOf - b.packOf);
+        setFormData(prev => ({ ...prev, bulkPricing: updatedBulk }));
         setNewTier({ packOf: "", price: "" });
         setBulkTierEditIndex(null);
+    };
+
+    const togglePublish = async (id, currentStatus) => {
+        try {
+            const res = await fetch("/api/admin/products", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id, isPublished: !currentStatus })
+            });
+            if (res.ok) {
+                setProducts(products.map(p => p._id === id ? { ...p, isPublished: !currentStatus } : p));
+                Swal.fire({
+                    icon: 'success',
+                    title: !currentStatus ? 'Published!' : 'Unpublished!',
+                    text: `Product is now ${!currentStatus ? 'visible' : 'hidden'} in the catalogue.`,
+                    timer: 1500,
+                    showConfirmButton: false,
+                    toast: true,
+                    position: 'top-end'
+                });
+            }
+        } catch (error) {
+            Swal.fire("Error", "Failed to update publication status", "error");
+        }
     };
 
     const editBulkTier = (index) => {
@@ -238,7 +158,17 @@ export default function ProductsPage() {
 
         const url = "/api/admin/products";
         const method = isEditMode ? "PUT" : "POST";
-        const body = isEditMode ? { ...formData, id: editingId } : formData;
+        const formattedData = {
+            ...formData,
+            mrpPrice: Number(formData.mrpPrice) || 0,
+            salePrice: Number(formData.salePrice) || 0,
+            commissionValue: Number(formData.commissionValue) || 0,
+            bulkPricing: (formData.bulkPricing || []).map(tier => ({
+                packOf: Number(tier.packOf),
+                price: Number(tier.price)
+            }))
+        };
+        const body = isEditMode ? { ...formattedData, id: editingId } : formattedData;
 
         try {
             const res = await fetch(url, {
@@ -255,7 +185,7 @@ export default function ProductsPage() {
                     timer: 1500,
                     showConfirmButton: false
                 });
-                setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionPercentage: 20 });
+                setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionType: "Percentage", commissionValue: 20 });
                 setIsEditMode(false);
                 setEditingId(null);
                 setShowForm(false);
@@ -279,8 +209,9 @@ export default function ProductsPage() {
             salePrice: product.salePrice,
             images: product.images || [],
             bulkPricing: product.bulkPricing || [],
-            category: product.category || "Uncategorized",
-            commissionPercentage: product.commissionPercentage || 20
+            category: product.category ?? "Uncategorized",
+            commissionType: product.commissionType ?? "Percentage",
+            commissionValue: product.commissionValue ?? 20
         });
         setIsEditMode(true);
         setEditingId(product._id);
@@ -335,7 +266,7 @@ export default function ProductsPage() {
                         if (showForm && isEditMode) {
                             setIsEditMode(false);
                             setEditingId(null);
-                            setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionPercentage: 20 });
+                            setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionType: "Percentage", commissionValue: 20 });
                         }
                         setShowForm(!showForm);
                     }}
@@ -367,7 +298,7 @@ export default function ProductsPage() {
                                     <input
                                         required
                                         value={formData.name}
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
                                         placeholder="e.g. Premium Wireless Headphones"
                                     />
@@ -377,26 +308,12 @@ export default function ProductsPage() {
                                     <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Category</label>
                                     <select
                                         value={formData.category}
-                                        onChange={async (e) => {
-                                            if (["ADD_NEW", "EDIT_CATEGORY", "DELETE_CATEGORY"].includes(e.target.value)) {
-                                                const result = await handleCategoryAction(e.target.value);
-                                                if (result) setFormData({ ...formData, category: result });
-                                            } else {
-                                                setFormData({ ...formData, category: e.target.value });
-                                            }
-                                        }}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm appearance-none cursor-pointer"
                                     >
-                                        <optgroup label="Categories">
-                                            {categories.filter(c => c !== "All").map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
-                                            ))}
-                                        </optgroup>
-                                        <optgroup label="Management">
-                                            <option value="ADD_NEW" className="text-blue-600 font-black">+ Add New Category</option>
-                                            <option value="EDIT_CATEGORY" className="text-orange-600 font-black">✎ Edit Category</option>
-                                            <option value="DELETE_CATEGORY" className="text-red-600 font-black">- Delete Category</option>
-                                        </optgroup>
+                                        {categories.filter(c => c !== "All").map(cat => (
+                                            <option key={cat} value={cat}>{cat}</option>
+                                        ))}
                                     </select>
                                 </div>
 
@@ -406,7 +323,8 @@ export default function ProductsPage() {
                                         required
                                         type="number"
                                         value={formData.mrpPrice}
-                                        onChange={e => setFormData({ ...formData, mrpPrice: e.target.value })}
+                                        onChange={e => setFormData(prev => ({ ...prev, mrpPrice: e.target.value }))}
+                                        onWheel={(e) => e.target.blur()}
                                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
                                         placeholder="0"
                                     />
@@ -418,21 +336,37 @@ export default function ProductsPage() {
                                         required
                                         type="number"
                                         value={formData.salePrice}
-                                        onChange={e => setFormData({ ...formData, salePrice: e.target.value })}
+                                        onChange={e => setFormData(prev => ({ ...prev, salePrice: e.target.value }))}
+                                        onWheel={(e) => e.target.blur()}
                                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
                                         placeholder="0"
                                     />
                                 </div>
 
                                 <div className="space-y-2 text-left">
-                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Commission (%)</label>
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Commission Type</label>
+                                    <select
+                                        value={formData.commissionType}
+                                        onChange={e => setFormData(prev => ({ ...prev, commissionType: e.target.value }))}
+                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm appearance-none cursor-pointer"
+                                    >
+                                        <option value="Percentage">Percentage (%)</option>
+                                        <option value="Flat">Flat (₹)</option>
+                                    </select>
+                                </div>
+
+                                <div className="space-y-2 text-left">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">
+                                        Commission Value {formData.commissionType === "Percentage" ? "(%)" : "(₹)"}
+                                    </label>
                                     <input
                                         required
                                         type="number"
-                                        value={formData.commissionPercentage}
-                                        onChange={e => setFormData({ ...formData, commissionPercentage: e.target.value })}
+                                        value={formData.commissionValue}
+                                        onChange={e => setFormData(prev => ({ ...prev, commissionValue: e.target.value }))}
+                                        onWheel={(e) => e.target.blur()}
                                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
-                                        placeholder="20"
+                                        placeholder={formData.commissionType === "Percentage" ? "20" : "50"}
                                     />
                                 </div>
 
@@ -442,7 +376,7 @@ export default function ProductsPage() {
                                         required
                                         rows={4}
                                         value={formData.description}
-                                        onChange={e => setFormData({ ...formData, description: e.target.value })}
+                                        onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                                         className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm resize-none"
                                         placeholder="Describe the product features and benefits..."
                                     />
@@ -537,7 +471,7 @@ export default function ProductsPage() {
                                         onClick={() => {
                                             setIsEditMode(false);
                                             setEditingId(null);
-                                            setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionPercentage: 20 });
+                                            setFormData({ name: "", description: "", mrpPrice: "", salePrice: "", images: [], bulkPricing: [], category: "Uncategorized", commissionType: "Percentage", commissionValue: 20 });
                                             setShowForm(false);
                                         }}
                                         className="px-8 py-5 bg-gray-100 text-gray-500 font-black rounded-[24px] uppercase tracking-widest text-sm hover:bg-gray-200 transition-all active:scale-[0.98]"
@@ -606,11 +540,17 @@ export default function ProductsPage() {
                                     <tr><td colSpan="6" className="px-8 py-20 text-center animate-pulse text-gray-400 font-bold italic">Loading inventory...</td></tr>
                                 ) : products.filter(p => {
                                     const searchLower = searchQuery.toLowerCase();
+                                    const catLower = selectedCategory.toLowerCase();
+
                                     const matchesSearch = p.name.toLowerCase().includes(searchLower) ||
                                         (p.description && p.description.toLowerCase().includes(searchLower));
+
                                     const matchesCategory = selectedCategory === "All" ||
-                                        (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()) ||
-                                        ((!p.category || p.category.toLowerCase() === "uncategorized") && p.name.toLowerCase().includes(selectedCategory.toLowerCase()));
+                                        (p.category && p.category.toLowerCase() === catLower) ||
+                                        ((!p.category || p.category.toLowerCase() === "uncategorized") &&
+                                            (p.name.toLowerCase().includes(catLower) ||
+                                                (p.description && p.description.toLowerCase().includes(catLower))));
+
                                     return matchesSearch && matchesCategory;
                                 }).length === 0 ? (
                                     <tr>
@@ -622,11 +562,17 @@ export default function ProductsPage() {
                                 ) : (
                                     products.filter(p => {
                                         const searchLower = searchQuery.toLowerCase();
+                                        const catLower = selectedCategory.toLowerCase();
+
                                         const matchesSearch = p.name.toLowerCase().includes(searchLower) ||
                                             (p.description && p.description.toLowerCase().includes(searchLower));
+
                                         const matchesCategory = selectedCategory === "All" ||
-                                            (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()) ||
-                                            ((!p.category || p.category.toLowerCase() === "uncategorized") && p.name.toLowerCase().includes(selectedCategory.toLowerCase()));
+                                            (p.category && p.category.toLowerCase() === catLower) ||
+                                            ((!p.category || p.category.toLowerCase() === "uncategorized") &&
+                                                (p.name.toLowerCase().includes(catLower) ||
+                                                    (p.description && p.description.toLowerCase().includes(catLower))));
+
                                         return matchesSearch && matchesCategory;
                                     }).map((product, index) => (
                                         <tr key={product._id} className="hover:bg-gray-50/50 transition-all font-bold group">
@@ -643,7 +589,22 @@ export default function ProductsPage() {
                                             <td className="px-8 py-6">
                                                 <Link href={`/admin/products/${product._id}`} className="max-w-xs block group/text">
                                                     <p className="text-sm text-gray-900 group-hover/text:text-blue-600 transition-colors line-clamp-1">{product.name}</p>
-                                                    <p className="text-[10px] text-gray-400 mt-1.5 line-clamp-1 font-medium">{product.description}</p>
+                                                    <div className="flex items-center gap-2 mt-1.5">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                togglePublish(product._id, product.isPublished);
+                                                            }}
+                                                            className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${product.isPublished ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                                        >
+                                                            <div className={`w-1 h-1 rounded-full ${product.isPublished ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                                                            {product.isPublished ? 'Live' : 'Draft'}
+                                                        </button>
+                                                        <p className="text-[10px] text-gray-400 line-clamp-1 font-medium italic">
+                                                            {typeof product.category === 'string' ? product.category : "Uncategorized"} • {product.description}
+                                                        </p>
+                                                    </div>
                                                 </Link>
                                             </td>
                                             <td className="px-8 py-6 text-right">
@@ -660,10 +621,13 @@ export default function ProductsPage() {
                                             <td className="px-8 py-6 text-right">
                                                 <div className="flex flex-col items-end">
                                                     <p className="text-sm text-green-600 font-black">
-                                                        ₹{((product.salePrice * (product.commissionPercentage || 20)) / 100).toLocaleString()}
+                                                        ₹{product.commissionType === "Flat"
+                                                            ? (product.commissionValue || 0).toLocaleString()
+                                                            : ((product.salePrice * (product.commissionValue || 0)) / 100).toLocaleString()
+                                                        }
                                                     </p>
                                                     <p className="text-[9px] text-gray-400 font-bold">
-                                                        ({product.commissionPercentage || 20}%)
+                                                        ({product.commissionValue || 0}{product.commissionType === "Flat" ? " Flat" : "%"})
                                                     </p>
                                                 </div>
                                             </td>

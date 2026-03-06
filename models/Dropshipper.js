@@ -10,6 +10,14 @@ const DropshipperSchema = new mongoose.Schema({
     totalSales: { type: Number, default: 0 },
     totalEarnings: { type: Number, default: 0 },
     subscriptionStatus: { type: String, enum: ['Added', 'Not-added'], default: 'Not-added' },
+    subscriptionPlan: { type: String, default: 'Free' },
+    subscriptionExpiry: { type: Date },
+    profileDetails: {
+        panNumber: { type: String },
+        bankAccount: { type: String },
+        ifscCode: { type: String },
+        upiId: { type: String }
+    },
     password: { type: String, default: '' },
 }, { timestamps: true });
 

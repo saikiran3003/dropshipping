@@ -9,6 +9,9 @@ import {
     LogOut,
     Truck,
     XCircle,
+    Image as ImageIcon,
+    FileText,
+    Layers
 } from "lucide-react";
 import Swal from "sweetalert2";
 import Link from "next/link";
@@ -56,7 +59,10 @@ export default function AdminLayout({ children }) {
     const navItems = [
         { label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
         { label: "Dropshippers", icon: Users, path: "/admin/dropshipping" },
+        { label: "Categories", icon: Layers, path: "/admin/categories" },
         { label: "Products", icon: Package, path: "/admin/products" },
+        { label: "Banners", icon: ImageIcon, path: "/admin/banners" },
+        { label: "CMS Pages", icon: FileText, path: "/admin/cms" },
     ];
 
     return (

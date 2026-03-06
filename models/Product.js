@@ -13,7 +13,9 @@ const ProductSchema = new mongoose.Schema({
         }
     ],
     category: { type: String, default: 'Uncategorized' },
-    commissionPercentage: { type: Number, default: 20 }
+    commissionType: { type: String, enum: ['Percentage', 'Flat'], default: 'Percentage' },
+    commissionValue: { type: Number, default: 20 },
+    isPublished: { type: Boolean, default: true }
 }, { timestamps: true });
 
 if (mongoose.models.Product) {

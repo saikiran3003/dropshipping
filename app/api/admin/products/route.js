@@ -26,7 +26,7 @@ export async function POST(req) {
     try {
         await dbConnect();
         const body = await req.json();
-        const { name, description, mrpPrice, salePrice, images, bulkPricing, category, commissionPercentage } = body;
+        const { name, description, mrpPrice, salePrice, images, bulkPricing, category, commissionType, commissionValue, isPublished } = body;
 
         if (!name || !description || !mrpPrice || !salePrice) {
             return NextResponse.json({ message: "Name, Description, MRP Price, and Sale Price are required." }, { status: 400 });
@@ -43,7 +43,9 @@ export async function POST(req) {
             images: cloudinaryUrls,
             bulkPricing: bulkPricing || [],
             category: category || 'Uncategorized',
-            commissionPercentage: commissionPercentage || 20
+            commissionType: commissionType || 'Percentage',
+            commissionValue: commissionValue ?? 20,
+            isPublished: isPublished !== undefined ? isPublished : true
         });
 
         await newProduct.save();
@@ -69,16 +71,21 @@ export async function PUT(req) {
     try {
         await dbConnect();
         const body = await req.json();
-        const { id, name, description, mrpPrice, salePrice, images, bulkPricing, category, commissionPercentage } = body;
+        const { id, ...updateData } = body;
 
         if (!id) return NextResponse.json({ message: "Product ID is missing" }, { status: 400 });
 
-        // Upload new images to Cloudinary if any (or keep existing URLs)
-        const cloudinaryUrls = await uploadToCloudinary(images);
+        // Only upload to Cloudinary if images are actually being updated
+        if (updateData.images) {
+            updateData.images = await uploadToCloudinary(updateData.images);
+        }
+
+        // Remove any fields that are purely undefined to avoid accidental overrides
+        Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
         const updatedProduct = await Product.findByIdAndUpdate(
             id,
-            { name, description, mrpPrice, salePrice, images: cloudinaryUrls, bulkPricing: bulkPricing || [], category, commissionPercentage },
+            updateData,
             { new: true, runValidators: true }
         ).lean();
 

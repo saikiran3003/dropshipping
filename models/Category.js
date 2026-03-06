@@ -1,7 +1,9 @@
 import mongoose from 'mongoose';
 
 const CategorySchema = new mongoose.Schema({
-    name: { type: String, required: true, unique: true }
+    name: { type: String, required: true, unique: true },
+    imageUrl: { type: String },
+    link: { type: String }
 }, { timestamps: true });
 
 if (mongoose.models.Category) {

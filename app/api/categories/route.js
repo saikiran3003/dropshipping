@@ -17,7 +17,7 @@ export async function GET() {
 export async function POST(req) {
     try {
         await dbConnect();
-        const { name } = await req.json();
+        const { name, imageUrl, link } = await req.json();
 
         if (!name) {
             return NextResponse.json({ message: "Category name is required" }, { status: 400 });
@@ -30,7 +30,11 @@ export async function POST(req) {
             return NextResponse.json({ message: "Category already exists" }, { status: 400 });
         }
 
-        const newCategory = new Category({ name: normalizedName });
+        const newCategory = new Category({
+            name: normalizedName,
+            imageUrl: imageUrl || "",
+            link: link || ""
+        });
         await newCategory.save();
 
         return NextResponse.json({ message: "Category added successfully", data: newCategory }, { status: 201 });
@@ -43,7 +47,7 @@ export async function POST(req) {
 export async function PUT(req) {
     try {
         await dbConnect();
-        const { oldName, newName } = await req.json();
+        const { oldName, newName, imageUrl, link } = await req.json();
 
         if (!oldName || !newName) {
             return NextResponse.json({ message: "Old and new names are required" }, { status: 400 });
@@ -54,7 +58,11 @@ export async function PUT(req) {
         // Update Category document
         const updatedCategory = await Category.findOneAndUpdate(
             { name: oldName },
-            { name: normalizedNewName },
+            {
+                name: normalizedNewName,
+                imageUrl: imageUrl,
+                link: link
+            },
             { new: true }
         );
 

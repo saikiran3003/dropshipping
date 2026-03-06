@@ -24,7 +24,7 @@ export default function DropshipperProductsPage() {
             const res = await fetch("/api/categories");
             if (res.ok) {
                 const data = await res.json();
-                const catNames = data.map(c => c.name);
+                const catNames = data.map(c => typeof c.name === 'string' ? c.name : String(c.name || ""));
                 setCategories(["All", ...catNames, "Uncategorized"]);
             }
         } catch (error) {
@@ -91,7 +91,9 @@ export default function DropshipperProductsPage() {
                             >
                                 <optgroup label="Filters">
                                     {categories.map(cat => (
-                                        <option key={cat} value={cat}>{cat}</option>
+                                        <option key={typeof cat === 'string' ? cat : (cat?._id || index)} value={typeof cat === 'string' ? cat : (cat?.name || "")}>
+                                            {typeof cat === 'string' ? cat : (cat?.name || "Uncategorized")}
+                                        </option>
                                     ))}
                                 </optgroup>
                             </select>
@@ -122,11 +124,17 @@ export default function DropshipperProductsPage() {
                                 <tr><td colSpan="5" className="px-8 py-20 text-center animate-pulse text-gray-400 font-bold italic">Loading inventory...</td></tr>
                             ) : products.filter(p => {
                                 const searchLower = searchQuery.toLowerCase();
+                                const catLower = selectedCategory.toLowerCase();
+
                                 const matchesSearch = p.name.toLowerCase().includes(searchLower) ||
                                     (p.description && p.description.toLowerCase().includes(searchLower));
+
                                 const matchesCategory = selectedCategory === "All" ||
-                                    (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()) ||
-                                    ((!p.category || p.category.toLowerCase() === "uncategorized") && p.name.toLowerCase().includes(selectedCategory.toLowerCase()));
+                                    (p.category && p.category.toLowerCase() === catLower) ||
+                                    ((!p.category || p.category.toLowerCase() === "uncategorized") &&
+                                        (p.name.toLowerCase().includes(catLower) ||
+                                            (p.description && p.description.toLowerCase().includes(catLower))));
+
                                 return matchesSearch && matchesCategory;
                             }).length === 0 ? (
                                 <tr>
@@ -138,11 +146,17 @@ export default function DropshipperProductsPage() {
                             ) : (
                                 products.filter(p => {
                                     const searchLower = searchQuery.toLowerCase();
+                                    const catLower = selectedCategory.toLowerCase();
+
                                     const matchesSearch = p.name.toLowerCase().includes(searchLower) ||
                                         (p.description && p.description.toLowerCase().includes(searchLower));
+
                                     const matchesCategory = selectedCategory === "All" ||
-                                        (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()) ||
-                                        ((!p.category || p.category.toLowerCase() === "uncategorized") && p.name.toLowerCase().includes(selectedCategory.toLowerCase()));
+                                        (p.category && p.category.toLowerCase() === catLower) ||
+                                        ((!p.category || p.category.toLowerCase() === "uncategorized") &&
+                                            (p.name.toLowerCase().includes(catLower) ||
+                                                (p.description && p.description.toLowerCase().includes(catLower))));
+
                                     return matchesSearch && matchesCategory;
                                 }).map((product, index) => (
                                     <tr key={product._id} className="hover:bg-gray-50/50 transition-all font-bold group">
@@ -159,7 +173,9 @@ export default function DropshipperProductsPage() {
                                         <td className="px-8 py-6">
                                             <Link href={`/dropshipper/products/${product._id}`} className="max-w-xs block group/text">
                                                 <p className="text-sm text-gray-900 group-hover/text:text-blue-600 transition-colors line-clamp-1">{product.name}</p>
-                                                <p className="text-[10px] text-gray-400 mt-1.5 line-clamp-1 font-medium">{product.description}</p>
+                                                <p className="text-[10px] text-gray-400 mt-1.5 line-clamp-1 font-medium">
+                                                    {typeof product.category === 'string' ? product.category : "Uncategorized"} • {product.description}
+                                                </p>
                                             </Link>
                                         </td>
                                         <td className="px-8 py-6 text-right">
@@ -176,10 +192,13 @@ export default function DropshipperProductsPage() {
                                         <td className="px-8 py-6 text-right">
                                             <div className="flex flex-col items-end">
                                                 <p className="text-sm text-green-600 font-black">
-                                                    ₹{((product.salePrice * (product.commissionPercentage || 20)) / 100).toLocaleString()}
+                                                    ₹{product.commissionType === "Flat"
+                                                        ? (product.commissionValue || 0).toLocaleString()
+                                                        : ((product.salePrice * (product.commissionValue || 0)) / 100).toLocaleString()
+                                                    }
                                                 </p>
                                                 <p className="text-[9px] text-gray-400 font-bold">
-                                                    ({product.commissionPercentage || 20}%)
+                                                    ({product.commissionValue || 0}{product.commissionType === "Flat" ? " Flat" : "%"})
                                                 </p>
                                             </div>
                                         </td>
