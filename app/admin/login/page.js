@@ -12,10 +12,10 @@ export default function AdminLoginPage() {
     const [error, setError] = useState("");
     const router = useRouter();
 
-    // Auto-logout when landing on login page
     useEffect(() => {
         const performLogout = async () => {
             try {
+                sessionStorage.removeItem("admin_logged_in");
                 await fetch("/api/admin/logout", { method: "POST" });
             } catch (err) {
                 console.error("Auto-logout failed", err);
@@ -39,6 +39,7 @@ export default function AdminLoginPage() {
             const data = await res.json();
 
             if (res.ok) {
+                sessionStorage.setItem("admin_logged_in", "true");
                 Swal.fire({
                     title: "Logged in!",
                     text: "Login successfully",

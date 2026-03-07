@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
     LayoutDashboard,
@@ -21,6 +21,17 @@ export default function AdminLayout({ children }) {
     const router = useRouter();
     const pathname = usePathname();
 
+    useEffect(() => {
+        if (pathname !== "/admin/login") {
+            const isLoggedIn = sessionStorage.getItem("admin_logged_in");
+            if (!isLoggedIn) {
+                fetch("/api/admin/logout", { method: "POST" }).then(() => {
+                    router.push("/admin/login");
+                });
+            }
+        }
+    }, [pathname, router]);
+
     if (pathname === "/admin/login") {
         return <>{children}</>;
     }
@@ -39,6 +50,7 @@ export default function AdminLayout({ children }) {
 
         if (result.isConfirmed) {
             try {
+                sessionStorage.removeItem("admin_logged_in");
                 await fetch("/api/admin/logout", { method: "POST" });
                 Swal.fire({
                     title: 'Logged out!',
