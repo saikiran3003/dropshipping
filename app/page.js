@@ -36,11 +36,21 @@ export default function HomePage() {
     const [searchIndex, setSearchIndex] = useState(0);
     const placeholders = ["Search 'bread'", "Search 'milk'", "Search 'butter'", "Search 'chips'", "Search 'fruits'"];
 
-    useLayoutEffect(() => {
-        if ('scrollRestoration' in window.history) {
-            window.history.scrollRestoration = 'manual';
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            if ('scrollRestoration' in window.history) {
+                window.history.scrollRestoration = 'manual';
+            }
+            // Execute immediately
+            window.scrollTo(0, 0);
+
+            // Execute after a tiny delay to override any Next.js router scroll restoration
+            const timer = setTimeout(() => {
+                window.scrollTo(0, 0);
+            }, 10);
+
+            return () => clearTimeout(timer);
         }
-        window.scrollTo(0, 0);
     }, []);
 
     useEffect(() => {
@@ -145,11 +155,24 @@ export default function HomePage() {
 
     const filteredSearchProducts = searchQuery.trim() !== ""
         ? products.filter(p => {
-            const query = searchQuery.toLowerCase();
-            const nameMatch = p.name?.toLowerCase().includes(query);
-            const descMatch = p.description?.toLowerCase().includes(query);
-            const catMatch = (typeof p.category === 'string' ? p.category : p.category?.name)?.toLowerCase().includes(query);
-            return nameMatch || descMatch || catMatch;
+            let query = searchQuery.toLowerCase();
+            let maxPrice = Infinity;
+
+            const priceMatch = query.match(/(?:under|below)\s+(\d+)/);
+            if (priceMatch) {
+                maxPrice = parseInt(priceMatch[1], 10);
+                query = query.replace(/(?:under|below)\s+(\d+)/, '').trim();
+            }
+
+            let textMatch = true;
+            if (query.length > 0) {
+                const nameMatch = p.name?.toLowerCase().includes(query);
+                const descMatch = p.description?.toLowerCase().includes(query);
+                const catMatch = (typeof p.category === 'string' ? p.category : p.category?.name)?.toLowerCase().includes(query);
+                textMatch = nameMatch || descMatch || catMatch;
+            }
+
+            return textMatch && p.salePrice <= maxPrice;
         })
         : [];
 

@@ -1,16 +1,28 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Layers, Search, Loader2, Pencil, Upload, Image as ImageIcon, X } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2, Layers, Search, Loader2, Pencil, Upload, Image as ImageIcon, X, ArrowLeft } from "lucide-react";
 import Swal from "sweetalert2";
 
 export default function CategoriesPage() {
+    const router = useRouter();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [newCategory, setNewCategory] = useState("");
-    const [newImageUrl, setNewImageUrl] = useState("");
-    const [newLink, setNewLink] = useState("");
+
+    // Form States
+    const [showForm, setShowForm] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingOldName, setEditingOldName] = useState(null);
+    const [formData, setFormData] = useState({
+        name: "",
+        imageUrl: "",
+        link: ""
+    });
+
+    // Search State
     const [searchQuery, setSearchQuery] = useState("");
+    const formRef = useRef(null);
 
     const fetchCategories = async () => {
         try {
@@ -34,53 +46,78 @@ export default function CategoriesPage() {
         fetchCategories();
     }, []);
 
-    const handleImageUpload = (e, callback) => {
+    const handleImageUpload = (e) => {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onloadend = () => {
-                callback(reader.result);
+                setFormData(prev => ({ ...prev, imageUrl: reader.result }));
             };
             reader.readAsDataURL(file);
         }
     };
 
-    const handleAddCategory = async (e) => {
+    const removeImage = () => {
+        setFormData(prev => ({ ...prev, imageUrl: "" }));
+    };
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!newCategory.trim()) return;
+        if (!formData.name.trim()) return;
+
+        setLoading(true);
+        const url = "/api/categories";
+        const method = isEditMode ? "PUT" : "POST";
+
+        const body = isEditMode
+            ? { oldName: editingOldName, newName: formData.name.trim(), imageUrl: formData.imageUrl, link: formData.link.trim() }
+            : { name: formData.name.trim(), imageUrl: formData.imageUrl, link: formData.link.trim() };
 
         try {
-            const res = await fetch("/api/categories", {
-                method: "POST",
+            const res = await fetch(url, {
+                method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: newCategory.trim(),
-                    imageUrl: newImageUrl.trim(),
-                    link: newLink.trim()
-                })
+                body: JSON.stringify(body)
             });
 
             if (res.ok) {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Created!',
-                    text: 'Category added successfully',
+                    title: isEditMode ? 'Updated!' : 'Created!',
+                    text: isEditMode ? 'Category updated successfully' : 'Category added successfully',
                     timer: 1500,
                     showConfirmButton: false,
                     toast: true,
                     position: 'top-end'
                 });
-                setNewCategory("");
-                setNewImageUrl("");
-                setNewLink("");
+                setFormData({ name: "", imageUrl: "", link: "" });
+                setIsEditMode(false);
+                setEditingOldName(null);
+                setShowForm(false);
                 fetchCategories();
             } else {
                 const error = await res.json();
-                Swal.fire("Error", error.message || "Failed to add category", "error");
+                Swal.fire("Error", error.message || `Failed to ${isEditMode ? 'update' : 'add'} category`, "error");
             }
         } catch (error) {
             Swal.fire("Error", "Server error occurred", "error");
+        } finally {
+            setLoading(false);
         }
+    };
+
+    const handleEdit = (cat) => {
+        setFormData({
+            name: typeof cat.name === 'string' ? cat.name : String(cat.name || ""),
+            imageUrl: cat.imageUrl || "",
+            link: cat.link || ""
+        });
+        setIsEditMode(true);
+        setEditingOldName(typeof cat.name === 'string' ? cat.name : String(cat.name || ""));
+        setShowForm(true);
+        setTimeout(() => {
+            formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
     };
 
     const handleDelete = async (name) => {
@@ -109,236 +146,227 @@ export default function CategoriesPage() {
         }
     };
 
-    const handleEdit = async (cat) => {
-        // We'll use a custom state for the Swal editor if needed, but Swal handles HTML.
-        // For image upload inside Swal, we need to handle the change event.
-        const { value: formValues } = await Swal.fire({
-            title: 'Edit Category',
-            html: `
-                <div class="space-y-4 text-left p-4">
-                    <div>
-                        <label class="block text-xs font-black uppercase text-gray-400 mb-1 ml-1">Category Name</label>
-                        <input id="swal-name" class="swal2-input !m-0 !w-full !rounded-2xl !border-gray-100" placeholder="Name" value="${cat.name}">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-black uppercase text-gray-400 mb-1 ml-1">Category Image</label>
-                        <div class="mt-2 flex items-center gap-4">
-                            <div id="swal-preview-container" class="w-16 h-16 rounded-xl border border-gray-100 overflow-hidden bg-gray-50 flex items-center justify-center">
-                                ${cat.imageUrl ? `<img src="${cat.imageUrl}" class="w-full h-full object-cover">` : '<i data-lucide="image" class="text-gray-300"></i>'}
-                            </div>
-                            <label class="cursor-pointer px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all">
-                                Change Image
-                                <input type="file" id="swal-file" class="hidden" accept="image/*">
-                            </label>
-                        </div>
-                        <input type="hidden" id="swal-image-base64" value="${cat.imageUrl || ''}">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-black uppercase text-gray-400 mb-1 ml-1">Custom Link (Optional)</label>
-                        <input id="swal-link" class="swal2-input !m-0 !w-full !rounded-2xl !border-gray-100" placeholder="Link" value="${cat.link || ''}">
-                    </div>
-                </div>
-            `,
-            didOpen: () => {
-                const fileInput = document.getElementById('swal-file');
-                fileInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                            document.getElementById('swal-preview-container').innerHTML = `<img src="${reader.result}" class="w-full h-full object-cover">`;
-                            document.getElementById('swal-image-base64').value = reader.result;
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            },
-            focusConfirm: false,
-            showCancelButton: true,
-            confirmButtonText: 'Update',
-            confirmButtonColor: '#2563eb',
-            preConfirm: () => {
-                return {
-                    newName: document.getElementById('swal-name').value,
-                    imageUrl: document.getElementById('swal-image-base64').value,
-                    link: document.getElementById('swal-link').value
-                }
-            }
-        });
-
-        if (formValues && formValues.newName.trim()) {
-            try {
-                const res = await fetch("/api/categories", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        oldName: cat.name,
-                        newName: formValues.newName.trim(),
-                        imageUrl: formValues.imageUrl,
-                        link: formValues.link.trim()
-                    })
-                });
-                if (res.ok) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Updated!',
-                        text: 'Category updated successfully',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        toast: true,
-                        position: 'top-end'
-                    });
-                    fetchCategories();
-                } else {
-                    const error = await res.json();
-                    Swal.fire("Error", error.message || "Failed to update category", "error");
-                }
-            } catch (error) {
-                Swal.fire("Error", "Server error occurred", "error");
-            }
-        }
-    };
-
     const filteredCategories = categories.filter(cat => {
         const name = typeof cat.name === 'string' ? cat.name : "";
         return name.toLowerCase().includes(searchQuery.toLowerCase());
     });
 
     return (
-        <div className="space-y-10 animate-in fade-in duration-700">
+        <div className="p-4 md:p-10 space-y-10 animate-in fade-in duration-700 bg-gray-50/50 min-h-screen font-sans">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100">
-                        <Layers size={28} />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">Categories</h1>
-                        <p className="text-sm text-gray-500 font-medium">Manage your product classifications.</p>
+            <div className="flex items-center justify-between gap-5">
+                <div className="flex items-center gap-5">
+                    <button
+                        onClick={() => router.push('/admin/dashboard')}
+                        className="p-3 bg-white border border-gray-200 rounded-2xl text-gray-400 hover:text-blue-600 hover:bg-blue-50/50 transition-all active:scale-95 group shadow-sm"
+                    >
+                        <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+                    </button>
+                    <div className="space-y-1">
+                        <h1 className="text-3xl md:text-4xl font-black text-gray-900 tracking-tight leading-tight">Manage Categories</h1>
+                        <p className="text-sm text-gray-500 font-medium">Control your product classifications.</p>
                     </div>
                 </div>
+
+                <button
+                    onClick={() => {
+                        if (showForm && isEditMode) {
+                            setIsEditMode(false);
+                            setEditingOldName(null);
+                            setFormData({ name: "", imageUrl: "", link: "" });
+                        }
+                        setShowForm(!showForm);
+                    }}
+                    className={`flex items-center gap-3 px-6 py-4 rounded-[24px] font-black uppercase tracking-widest text-sm transition-all active:scale-95 shadow-lg ${showForm ? 'bg-gray-100 text-gray-500 hover:bg-gray-200 shadow-gray-100' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'}`}
+                >
+                    {showForm ? <X size={20} /> : <Plus size={20} />}
+                    <span className="hidden md:block">{showForm ? "Close Form" : "Add Category"}</span>
+                </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                {/* Add Category Card */}
-                <div className="lg:col-span-1">
-                    <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 sticky top-8">
-                        <h2 className="text-xl font-black text-gray-900 mb-6 flex items-center gap-2">
-                            <Plus size={20} className="text-blue-600" />
-                            New Category
-                        </h2>
-                        <form onSubmit={handleAddCategory} className="space-y-6">
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Category Name</label>
-                                <input
-                                    required
-                                    value={newCategory}
-                                    onChange={e => setNewCategory(e.target.value)}
-                                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
-                                    placeholder="e.g. Electronics"
-                                />
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 gap-12">
+                {/* Add/Edit Category Form */}
+                {showForm && (
+                    <div ref={formRef} className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 md:p-12 max-w-3xl animate-in slide-in-from-top duration-500">
+                        <div className="flex items-center gap-4 mb-10">
+                            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
+                                <Plus size={24} />
                             </div>
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Category Image</label>
-                                {newImageUrl ? (
-                                    <div className="relative group aspect-square w-32 mx-auto rounded-3xl overflow-hidden border-2 border-blue-500/20">
-                                        <img src={newImageUrl} className="w-full h-full object-cover" alt="Preview" />
-                                        <button
-                                            type="button"
-                                            onClick={() => setNewImageUrl("")}
-                                            className="absolute top-2 right-2 p-1 bg-white rounded-full text-red-500 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <X size={14} />
-                                        </button>
+                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+                                {isEditMode ? "Edit Category" : "Add Category"}
+                            </h2>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="space-y-2 text-left md:col-span-2">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Category Name</label>
+                                    <input
+                                        required
+                                        value={formData.name}
+                                        onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                        className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
+                                        placeholder="e.g. Electronics"
+                                    />
+                                </div>
+
+                                <div className="space-y-2 text-left md:col-span-2">
+                                    <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest block">Category Image</label>
+                                    <div className="flex items-start gap-6">
+                                        <div className="relative w-32 h-32 rounded-3xl overflow-hidden border-2 border-dashed border-gray-200 group bg-gray-50 flex items-center justify-center transition-all hover:bg-blue-50 hover:border-blue-400">
+                                            {formData.imageUrl ? (
+                                                <>
+                                                    <img src={formData.imageUrl} className="w-full h-full object-cover" alt="Preview" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            removeImage();
+                                                        }}
+                                                        className="absolute top-2 right-2 p-1.5 bg-white/90 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                                                    <ImageIcon size={32} className="text-gray-300 group-hover:text-blue-400 transition-colors mb-2" />
+                                                    <span className="text-[10px] uppercase font-black text-gray-400 group-hover:text-blue-500">Upload</span>
+                                                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                                </label>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 space-y-2 text-left">
+                                            <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Custom Link (Optional)</label>
+                                            <input
+                                                value={formData.link}
+                                                onChange={e => setFormData(prev => ({ ...prev, link: e.target.value }))}
+                                                className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
+                                                placeholder="/custom-link"
+                                            />
+                                        </div>
                                     </div>
-                                ) : (
-                                    <label className="flex flex-col items-center justify-center w-full aspect-square bg-gray-50 border-2 border-dashed border-gray-200 rounded-[32px] cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group">
-                                        <ImageIcon size={32} className="text-gray-300 group-hover:text-blue-400 transition-colors mb-2" />
-                                        <span className="text-[10px] uppercase font-black text-gray-400 group-hover:text-blue-500">Click to Upload</span>
-                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, setNewImageUrl)} />
-                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4">
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="flex-1 py-5 bg-blue-600 text-white font-black rounded-[24px] shadow-lg shadow-blue-100 uppercase tracking-widest text-sm hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50"
+                                >
+                                    {isEditMode ? "Update Category" : "Save Category"}
+                                </button>
+                                {isEditMode && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsEditMode(false);
+                                            setEditingOldName(null);
+                                            setFormData({ name: "", imageUrl: "", link: "" });
+                                            setShowForm(false);
+                                        }}
+                                        className="px-8 py-5 bg-gray-100 text-gray-500 font-black rounded-[24px] uppercase tracking-widest text-sm hover:bg-gray-200 transition-all active:scale-[0.98]"
+                                    >
+                                        Cancel
+                                    </button>
                                 )}
                             </div>
-                            <div className="space-y-2 text-left">
-                                <label className="text-[10px] uppercase font-black ml-2 text-gray-400 tracking-widest">Custom Link (Optional)</label>
-                                <input
-                                    value={newLink}
-                                    onChange={e => setNewLink(e.target.value)}
-                                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-blue-500/10 rounded-[24px] outline-none font-black text-sm text-gray-900 transition-all focus:bg-white shadow-sm"
-                                    placeholder="/custom-link"
-                                />
-                            </div>
-                            <button
-                                type="submit"
-                                className="w-full py-5 bg-blue-600 text-white font-black rounded-[24px] shadow-lg shadow-blue-100 uppercase tracking-widest text-sm hover:bg-blue-700 transition-all active:scale-[0.98]"
-                            >
-                                Create Category
-                            </button>
                         </form>
                     </div>
-                </div>
+                )}
 
-                {/* List Categories Card */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
-                        <div className="p-8 border-b border-gray-50 flex items-center gap-4 bg-gray-50/20">
-                            <div className="relative flex-1 group">
+                {/* Categories List Grid */}
+                <div className="bg-white rounded-3xl md:rounded-[40px] border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="p-6 md:p-8 border-b border-gray-50 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gray-50/20">
+                        <div className="flex flex-col md:flex-row items-start md:items-center gap-6 flex-1">
+                            <div className="relative w-full md:w-72 group">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
                                 <input
                                     type="text"
                                     placeholder="Search categories..."
-                                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-sm shadow-sm"
+                                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl md:rounded-2xl focus:ring-4 focus:ring-blue-500/5 outline-none transition-all font-bold text-xs md:text-sm placeholder:font-medium shadow-sm"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
                         </div>
 
-                        <div className="p-4">
-                            {loading ? (
-                                <div className="py-20 flex flex-col items-center justify-center text-gray-400 gap-4">
-                                    <Loader2 className="animate-spin" size={32} />
-                                    <p className="font-bold italic">Loading categories...</p>
-                                </div>
-                            ) : filteredCategories.length === 0 ? (
-                                <div className="py-20 text-center text-gray-400">
-                                    <Layers size={40} className="mx-auto mb-4 opacity-20" />
-                                    <p className="font-bold italic">No categories found.</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {filteredCategories.map((cat, idx) => (
-                                        <div
-                                            key={cat._id}
-                                            className="group flex items-center justify-between p-6 bg-gray-50/50 hover:bg-white border border-transparent hover:border-gray-100 rounded-[32px] transition-all hover:shadow-xl hover:shadow-gray-100/50"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-600 shadow-sm font-black text-xs">
-                                                    {idx + 1}
-                                                </div>
-                                                <span className="font-black text-gray-900 tracking-tight">
-                                                    {typeof cat.name === 'string' ? cat.name : String(cat.name || "")}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => handleEdit(cat)}
-                                                    className="p-3 bg-white text-orange-500 rounded-xl opacity-0 group-hover:opacity-100 hover:bg-orange-50 transition-all active:scale-90 shadow-sm"
-                                                >
-                                                    <Pencil size={18} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(cat.name)}
-                                                    className="p-3 bg-white text-red-500 rounded-xl opacity-0 group-hover:opacity-100 hover:bg-red-50 transition-all active:scale-90 shadow-sm"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                        <div className="flex items-center gap-4 self-end md:self-auto">
+                            <h2 className="hidden md:block text-xl font-black text-gray-900 tracking-tight">Catalogue</h2>
+                            <span className="bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                                {categories.length} Items
+                            </span>
                         </div>
+                    </div>
+
+                    <div className="overflow-x-auto scrollbar-hide">
+                        <table className="w-full text-left min-w-[800px]">
+                            <thead>
+                                <tr className="bg-gray-50/30">
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">ID</th>
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Image</th>
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest">Category Details</th>
+                                    <th className="px-6 md:px-8 py-4 text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {loading && categories.length === 0 ? (
+                                    <tr><td colSpan="4" className="px-8 py-20 text-center animate-pulse text-gray-400 font-bold italic">Loading categories...</td></tr>
+                                ) : filteredCategories.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="4" className="px-8 py-20 text-center">
+                                            <Layers size={40} className="mx-auto text-gray-200 mb-3" />
+                                            <p className="text-gray-400 font-bold italic">No matching categories found.</p>
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredCategories.map((cat, idx) => (
+                                        <tr key={cat._id} className="hover:bg-gray-50/50 transition-all font-bold group">
+                                            <td className="px-8 py-6 text-xs text-gray-400 font-black">#{idx + 1}</td>
+                                            <td className="px-8 py-6">
+                                                <div className="w-14 h-14 bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex items-center justify-center group/img">
+                                                    {cat.imageUrl ? (
+                                                        <img src={cat.imageUrl} alt={cat.name} className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500" />
+                                                    ) : (
+                                                        <ImageIcon size={24} className="text-gray-200" />
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <div className="max-w-xs group/text">
+                                                    <p className="text-sm text-gray-900 group-hover/text:text-blue-600 transition-colors line-clamp-1">
+                                                        {typeof cat.name === 'string' ? cat.name : String(cat.name || "")}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-1.5">
+                                                        <p className="text-[10px] text-gray-400 line-clamp-1 font-medium italic">
+                                                            {cat.link ? `Link: ${cat.link}` : 'No custom link'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-8 py-6">
+                                                <div className="flex items-center justify-center gap-3">
+                                                    <button
+                                                        onClick={() => handleEdit(cat)}
+                                                        className="p-2.5 bg-orange-50 text-orange-500 rounded-xl hover:bg-orange-100 transition-all active:scale-90"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(cat.name)}
+                                                        className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-all active:scale-90"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

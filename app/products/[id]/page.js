@@ -81,6 +81,11 @@ export default function ProductDetail() {
 
     if (!product) return null;
 
+    const tier = product.bulkPricing?.find(t => t.packOf === quantity);
+    const displayPrice = tier ? tier.price : (product.salePrice * quantity);
+    const displayMrp = product.mrpPrice * quantity;
+    const saveAmount = displayMrp - displayPrice;
+
     return (
         <div className="min-h-screen bg-white pb-20">
             {/* Header / Nav */}
@@ -154,10 +159,10 @@ export default function ProductDetail() {
                             <div className="p-8 bg-gray-50/50 rounded-[40px] border border-gray-100 space-y-6">
                                 <div className="space-y-1">
                                     <div className="flex items-baseline gap-4">
-                                        <span className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">₹{(product.salePrice * quantity).toLocaleString()}</span>
-                                        <span className="text-lg md:text-2xl font-bold text-gray-400 line-through">₹{(product.mrpPrice * quantity).toLocaleString()}</span>
+                                        <span className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">₹{displayPrice.toLocaleString()}</span>
+                                        <span className="text-lg md:text-2xl font-bold text-gray-400 line-through">₹{displayMrp.toLocaleString()}</span>
                                         <span className="bg-green-100 text-green-600 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-widest">
-                                            Save ₹{((product.mrpPrice - product.salePrice) * quantity).toLocaleString()}
+                                            Save ₹{saveAmount.toLocaleString()}
                                         </span>
                                     </div>
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Inclusive of all taxes</p>
