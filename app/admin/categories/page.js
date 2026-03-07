@@ -324,7 +324,7 @@ export default function CategoriesPage() {
                                 ) : (
                                     filteredCategories.map((cat, idx) => (
                                         <tr key={cat._id} className="hover:bg-gray-50/50 transition-all font-bold group">
-                                            <td className="px-8 py-6 text-xs text-gray-400 font-black">#{idx + 1}</td>
+                                            <td className="px-8 py-6 text-xs text-black-500 font-black">#{idx + 1}</td>
                                             <td className="px-8 py-6">
                                                 <div className="w-14 h-14 bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 shadow-sm flex items-center justify-center group/img">
                                                     {cat.imageUrl ? (
@@ -336,7 +336,7 @@ export default function CategoriesPage() {
                                             </td>
                                             <td className="px-8 py-6">
                                                 <div className="max-w-xs group/text">
-                                                    <p className="text-sm text-gray-900 group-hover/text:text-blue-600 transition-colors line-clamp-1">
+                                                    <p className="text-sm text-black-900 group-hover/text:text-blue-600 transition-colors line-clamp-1">
                                                         {typeof cat.name === 'string' ? cat.name : String(cat.name || "")}
                                                     </p>
                                                     <div className="flex items-center gap-2 mt-1.5">

@@ -108,7 +108,7 @@ export default function CategoryPage({ params }) {
                             </div>
 
                             <div className="flex-1 flex flex-col px-1 pb-2">
-                                <h3 className="text-[13px] md:text-sm font-black text-gray-900 line-clamp-2 leading-snug h-10 mb-3 group-hover:text-blue-600 transition-colors">
+                                <h3 className="text-[13px] md:text-sm font-black text-black-900 line-clamp-2 leading-snug h-10 mb-3 group-hover:text-blue-600 transition-colors">
                                     {product.name}
                                 </h3>
 
