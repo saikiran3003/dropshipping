@@ -143,6 +143,16 @@ export default function HomePage() {
     const bigBanners = banners.filter(b => b.isActive && (b.bannerType === 'big' || !b.bannerType));
     const smallBanners = banners.filter(b => b.isActive && b.bannerType === 'small');
 
+    const filteredSearchProducts = searchQuery.trim() !== ""
+        ? products.filter(p => {
+            const query = searchQuery.toLowerCase();
+            const nameMatch = p.name?.toLowerCase().includes(query);
+            const descMatch = p.description?.toLowerCase().includes(query);
+            const catMatch = (typeof p.category === 'string' ? p.category : p.category?.name)?.toLowerCase().includes(query);
+            return nameMatch || descMatch || catMatch;
+        })
+        : [];
+
     return (
         <div className="min-h-screen bg-white font-sans text-gray-900">
             {/* Navigation */}
@@ -161,7 +171,7 @@ export default function HomePage() {
 
                     {/* Search Bar - Desktop */}
                     <div className="hidden md:flex flex-1 max-w-2xl relative">
-                        <div className="relative w-full group">
+                        <div className="relative w-full group z-[60] overflow-visible">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-600 transition-colors" size={18} />
                             <input
                                 type="text"
@@ -170,6 +180,35 @@ export default function HomePage() {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
+                            {/* Search Dropdown Desktop */}
+                            {searchQuery.trim().length > 0 && (
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-[110] max-h-96 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {filteredSearchProducts.length > 0 ? (
+                                        filteredSearchProducts.map(product => (
+                                            <Link
+                                                key={`desktop-search-${product._id}`}
+                                                href={`/products/${product._id}`}
+                                                onClick={() => setSearchQuery("")}
+                                                className="w-full flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                                            >
+                                                <div className="w-12 h-12 rounded-lg bg-gray-50 overflow-hidden shrink-0">
+                                                    <img src={product.images?.[0] || 'https://via.placeholder.com/150'} alt={product.name} className="w-full h-full object-cover" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="font-bold text-gray-900 text-sm line-clamp-1">{product.name}</div>
+                                                    <div className="text-[11px] font-medium text-gray-400 uppercase tracking-widest mt-0.5 line-clamp-1">{typeof product.category === 'string' ? product.category : product.category?.name}</div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div className="font-black text-gray-900 text-sm">₹{product.salePrice}</div>
+                                                    {product.mrpPrice > product.salePrice && <div className="text-[10px] text-gray-400 line-through">₹{product.mrpPrice}</div>}
+                                                </div>
+                                            </Link>
+                                        ))
+                                    ) : (
+                                        <div className="p-6 text-center text-sm font-bold text-gray-500">No products found for "{searchQuery}"</div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -193,7 +232,7 @@ export default function HomePage() {
 
                 {/* Mobile Search */}
                 <div className="md:hidden px-4 pb-4">
-                    <div className="relative group">
+                    <div className="relative group z-[60] overflow-visible">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                         <input
                             type="text"
@@ -202,6 +241,34 @@ export default function HomePage() {
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
+                        {/* Search Dropdown Mobile */}
+                        {searchQuery.trim().length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[110] max-h-80 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                                {filteredSearchProducts.length > 0 ? (
+                                    filteredSearchProducts.map(product => (
+                                        <Link
+                                            key={`mobile-search-${product._id}`}
+                                            href={`/products/${product._id}`}
+                                            onClick={() => setSearchQuery("")}
+                                            className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left border-b border-gray-50 last:border-0"
+                                        >
+                                            <div className="w-10 h-10 rounded-lg bg-gray-50 overflow-hidden shrink-0">
+                                                <img src={product.images?.[0] || 'https://via.placeholder.com/150'} alt={product.name} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="flex-1 overflow-hidden">
+                                                <div className="font-bold text-gray-900 text-xs line-clamp-1">{product.name}</div>
+                                                <div className="text-[10px] font-medium text-gray-400 uppercase tracking-widest mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">{typeof product.category === 'string' ? product.category : product.category?.name}</div>
+                                            </div>
+                                            <div className="text-right shrink-0">
+                                                <div className="font-black text-gray-900 text-xs">₹{product.salePrice}</div>
+                                            </div>
+                                        </Link>
+                                    ))
+                                ) : (
+                                    <div className="p-4 text-center text-xs font-bold text-gray-500">No products found</div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </nav>
