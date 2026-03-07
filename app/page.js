@@ -36,20 +36,12 @@ export default function HomePage() {
     const [searchIndex, setSearchIndex] = useState(0);
     const placeholders = ["Search 'bread'", "Search 'milk'", "Search 'butter'", "Search 'chips'", "Search 'fruits'"];
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (typeof window !== 'undefined') {
             if ('scrollRestoration' in window.history) {
                 window.history.scrollRestoration = 'manual';
             }
-            // Execute immediately
             window.scrollTo(0, 0);
-
-            // Execute after a tiny delay to override any Next.js router scroll restoration
-            const timer = setTimeout(() => {
-                window.scrollTo(0, 0);
-            }, 10);
-
-            return () => clearTimeout(timer);
         }
     }, []);
 

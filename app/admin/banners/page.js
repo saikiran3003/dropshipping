@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     Plus,
     Trash2,
@@ -31,6 +31,7 @@ export default function BannersPage() {
         bannerType: "big",
         isActive: true
     });
+    const formRef = useRef(null);
 
     const fetchBanners = async () => {
         try {
@@ -107,6 +108,9 @@ export default function BannersPage() {
         setIsEditMode(true);
         setEditingId(banner._id);
         setShowForm(true);
+        setTimeout(() => {
+            formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 100);
     };
 
     const handleDelete = async (id) => {
@@ -182,7 +186,7 @@ export default function BannersPage() {
             </div>
 
             {showForm && (
-                <div className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 md:p-12 max-w-2xl animate-in slide-in-from-top duration-500">
+                <div ref={formRef} className="bg-white rounded-[40px] border border-gray-100 shadow-sm p-8 md:p-12 max-w-2xl animate-in slide-in-from-top duration-500">
                     <form onSubmit={handleSubmit} className="space-y-8">
                         <div className="space-y-6">
                             <div className="space-y-2">
